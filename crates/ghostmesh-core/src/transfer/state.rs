@@ -42,7 +42,10 @@ impl TransferState {
             .manifest
             .chunks
             .get(index)
-            .ok_or(TransferError::IndexOutOfBounds(index, self.manifest.chunks.len()))?;
+            .ok_or(TransferError::IndexOutOfBounds(
+                index,
+                self.manifest.chunks.len(),
+            ))?;
 
         if chunk_data.len() != expected.length {
             return Err(TransferError::ChunkHashMismatch(index));
@@ -68,7 +71,9 @@ impl TransferState {
         let mut root_hasher = blake3::Hasher::new();
 
         for chunk_opt in &self.stored_chunks {
-            let chunk = chunk_opt.as_ref().ok_or(TransferError::IncompleteTransfer(1))?;
+            let chunk = chunk_opt
+                .as_ref()
+                .ok_or(TransferError::IncompleteTransfer(1))?;
             let h = *blake3::hash(chunk).as_bytes();
             root_hasher.update(&h);
             output.extend_from_slice(chunk);

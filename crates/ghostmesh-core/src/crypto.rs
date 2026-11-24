@@ -46,16 +46,14 @@ impl KeyExchange {
     ) -> (SessionCipher, SessionCipher) {
         let shared_secret = self.secret.diffie_hellman(peer_public);
 
-        let mut initiator_hasher = blake3::Hasher::new_derive_key(
-            "ghostmesh-kdf-session-keys-initiator-to-responder-v1",
-        );
+        let mut initiator_hasher =
+            blake3::Hasher::new_derive_key("ghostmesh-kdf-session-keys-initiator-to-responder-v1");
         initiator_hasher.update(KDF_DOMAIN);
         initiator_hasher.update(shared_secret.as_bytes());
         let init_to_resp = *initiator_hasher.finalize().as_bytes();
 
-        let mut responder_hasher = blake3::Hasher::new_derive_key(
-            "ghostmesh-kdf-session-keys-responder-to-initiator-v1",
-        );
+        let mut responder_hasher =
+            blake3::Hasher::new_derive_key("ghostmesh-kdf-session-keys-responder-to-initiator-v1");
         responder_hasher.update(KDF_DOMAIN);
         responder_hasher.update(shared_secret.as_bytes());
         let resp_to_init = *responder_hasher.finalize().as_bytes();

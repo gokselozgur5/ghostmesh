@@ -39,7 +39,11 @@ impl ChunkManifest {
         if data.is_empty() {
             return Err(TransferError::EmptyData);
         }
-        let chunk_size = if chunk_size == 0 { DEFAULT_CHUNK_SIZE } else { chunk_size };
+        let chunk_size = if chunk_size == 0 {
+            DEFAULT_CHUNK_SIZE
+        } else {
+            chunk_size
+        };
         let mut chunks = Vec::new();
         let mut root_hasher = blake3::Hasher::new();
 

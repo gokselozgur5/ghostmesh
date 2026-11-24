@@ -71,7 +71,9 @@ pub fn run_sim_sync() {
     assert!(bob_set.contains(&"node-alpha".to_string()));
 
     let (b_nonce, b_ct) = bob_tx.encrypt(b"SYNC_ACK").expect("bob encrypts ack");
-    let b_dec = alice_rx.decrypt(b_nonce, &b_ct).expect("alice decrypts ack");
+    let b_dec = alice_rx
+        .decrypt(b_nonce, &b_ct)
+        .expect("alice decrypts ack");
     assert_eq!(b_dec, b"SYNC_ACK");
 
     println!("sim-sync: E2EE handshake, CRDT sync & convergence verified successfully.");
