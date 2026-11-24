@@ -10,8 +10,8 @@ fn e2ee_handshake_and_bidirectional_encryption() {
     let alice_pub = *alice_kx.public_key();
     let bob_pub = *bob_kx.public_key();
 
-    let (mut alice_tx, mut alice_rx) = alice_kx.derive_session_keys(&bob_pub, true);
-    let (mut bob_tx, mut bob_rx) = bob_kx.derive_session_keys(&alice_pub, false);
+    let (mut alice_tx, mut alice_rx) = alice_kx.derive_session_keys(&bob_pub, true).unwrap();
+    let (mut bob_tx, mut bob_rx) = bob_kx.derive_session_keys(&alice_pub, false).unwrap();
 
     // Alice -> Bob
     let (nonce, ciphertext) = alice_tx.encrypt(b"hello from alice").unwrap();
@@ -71,4 +71,13 @@ fn tamper_and_wrong_key_detection() {
         rx_correct.decrypt(nonce, &ciphertext).unwrap_err(),
         CryptoError::DecryptionFailed
     );
+}
+
+#[test]
+fn non_contributory_diffie_hellman_fails() {
+    let mut rng = OsRng;
+    let alice_kx = KeyExchange::new(&mut rng);
+    let low_order_pub = x25519_dalek::PublicKey::from([0u8; 32]);
+    let res = alice_kx.derive_session_keys(&low_order_pub, true);
+    assert_eq!(res.unwrap_err(), CryptoError::InvalidPeerPublicKey);
 }
