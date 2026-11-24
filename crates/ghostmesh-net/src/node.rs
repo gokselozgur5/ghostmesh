@@ -183,3 +183,26 @@ impl MeshNode {
         }
         Ok(())
     }
+
+    pub fn sync_lww_with(&self, peer_addr: SocketAddr) -> Result<(), NodeError> {
+        let stream = TcpStream::connect(peer_addr)?;
+        let mut rng = rand_core::OsRng;
+        let mut enc = crate::handshake::client_handshake(stream, &self.identity, &mut rng)?;
+
+        let req = NodeMessage::SyncLwwRequest;
+        enc.send_encrypted(&serde_json::to_vec(&req)?)?;
+        let resp_bytes = enc.recv_encrypted()?;
+        let resp: NodeMessage = serde_json::from_slice(&resp_bytes)?;
+
+        if let NodeMessage::SyncLwwResponse { delta } = resp {
+            self.lww_map.lock().unwrap().merge(delta);
+        } else {
+            return Err(NodeError::Protocol("expected SyncLwwResponse".into()));
+        }
+
+        let my_delta = self.lww_map.lock().unwrap().delta_since(None);
+        let push_msg = NodeMessage::SyncLwwResponse { delta: my_delta };
+        enc.send_encrypted(&serde_json::to_vec(&push_msg)?)?;
+        let _ = enc.recv_encrypted()?;
+        Ok(())
+    }
