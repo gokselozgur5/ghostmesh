@@ -44,8 +44,12 @@ pub fn run_sim_sync() {
     let alice_pub = *alice_kx.public_key();
     let bob_pub = *bob_kx.public_key();
 
-    let (mut alice_tx, mut alice_rx) = alice_kx.derive_session_keys(&bob_pub, true);
-    let (mut bob_tx, mut bob_rx) = bob_kx.derive_session_keys(&alice_pub, false);
+    let (mut alice_tx, mut alice_rx) = alice_kx
+        .derive_session_keys(&bob_pub, true)
+        .map_err(|e| OpsError::Other(e.to_string()))?;
+    let (mut bob_tx, mut bob_rx) = bob_kx
+        .derive_session_keys(&alice_pub, false)
+        .map_err(|e| OpsError::Other(e.to_string()))?;
 
     let mut alice_map = LwwMap::new();
     let t1 = HlcTimestamp::new(100, 0, alice_id.peer_id());
