@@ -47,7 +47,7 @@ use ghostmesh_core::crdt::OrSet;
 use ghostmesh_core::identity::PeerIdentity;
 use ghostmesh_core::transfer::TransferState;
 use std::collections::HashMap;
-use std::net::{SocketAddr, TcpListener};
+use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 
 pub struct MeshNode {
