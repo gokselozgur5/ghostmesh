@@ -43,3 +43,28 @@ impl MessageKind {
         }
     }
 }
+
+use std::io::{Read, Write};
+
+pub fn write_frame<W: Write>(writer: &mut W, data: &[u8]) -> Result<(), WireError> {
+    if data.len() > MAX_FRAME_BYTES {
+        return Err(WireError::FrameTooLarge(data.len(), MAX_FRAME_BYTES));
+    }
+    let len_prefix = (data.len() as u32).to_be_bytes();
+    writer.write_all(&len_prefix)?;
+    writer.write_all(data)?;
+    writer.flush()?;
+    Ok(())
+}
+
+pub fn read_frame<R: Read>(reader: &mut R) -> Result<Vec<u8>, WireError> {
+    let mut len_buf = [0u8; 4];
+    reader.read_exact(&mut len_buf)?;
+    let length = u32::from_be_bytes(len_buf) as usize;
+    if length > MAX_FRAME_BYTES {
+        return Err(WireError::FrameTooLarge(length, MAX_FRAME_BYTES));
+    }
+    let mut data = vec![0u8; length];
+    reader.read_exact(&mut data)?;
+    Ok(data)
+}
