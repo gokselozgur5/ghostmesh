@@ -22,4 +22,42 @@ impl TermSize {
     pub fn fallback() -> Self {
         Self { cols: 80, rows: 24 }
     }
+
+    #[cfg(unix)]
+    pub fn current() -> Self {
+        #[repr(C)]
+        struct Winsize {
+            ws_row: u16,
+            ws_col: u16,
+            ws_xpixel: u16,
+            ws_ypixel: u16,
+        }
+
+        extern "C" {
+            fn ioctl(fd: i32, request: std::os::raw::c_ulong, ...) -> i32;
+        }
+
+        const TIOCGWINSZ: std::os::raw::c_ulong = 0x40087468;
+        let mut ws = Winsize {
+            ws_row: 0,
+            ws_col: 0,
+            ws_xpixel: 0,
+            ws_ypixel: 0,
+        };
+
+        let ret = unsafe { ioctl(1, TIOCGWINSZ, &mut ws) };
+        if ret == 0 && ws.ws_col > 0 && ws.ws_row > 0 {
+            Self {
+                cols: ws.ws_col,
+                rows: ws.ws_row,
+            }
+        } else {
+            Self::fallback()
+        }
+    }
+
+    #[cfg(not(unix))]
+    pub fn current() -> Self {
+        Self::fallback()
+    }
 }
