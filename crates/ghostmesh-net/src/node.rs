@@ -4,7 +4,13 @@ use ghostmesh_core::identity::PeerId;
 use ghostmesh_core::transfer::{ChunkManifest, TransferError};
 use serde::{Deserialize, Serialize};
 use std::io;
+use std::time::Duration;
 use thiserror::Error;
+
+pub const MAX_TRANSFER_BYTES: u64 = 64 * 1024 * 1024;
+pub const MAX_ACTIVE_TRANSFERS: usize = 64;
+pub const MAX_CONCURRENT_PEERS: usize = 64;
+pub const IO_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[derive(Debug, Error)]
 pub enum NodeError {
@@ -20,6 +26,10 @@ pub enum NodeError {
     Serialization(#[from] serde_json::Error),
     #[error("protocol violation: {0}")]
     Protocol(String),
+    #[error("peer capacity reached")]
+    PeerCapacityReached,
+    #[error("active transfer limit reached")]
+    TransferCapacityReached,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
