@@ -8,13 +8,14 @@ pub struct TransferState {
 }
 
 impl TransferState {
-    pub fn new(manifest: ChunkManifest) -> Self {
+    pub fn new(manifest: ChunkManifest) -> Result<Self, TransferError> {
+        manifest.validate(u64::MAX)?;
         let count = manifest.chunks.len();
-        Self {
+        Ok(Self {
             manifest,
             received_mask: vec![false; count],
             stored_chunks: vec![None; count],
-        }
+        })
     }
 
     pub fn is_chunk_received(&self, index: usize) -> bool {
