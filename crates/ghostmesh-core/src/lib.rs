@@ -4,3 +4,4 @@ pub mod announcement;
 pub mod crdt;
 pub mod crypto;
 pub mod identity;
+pub mod transfer;
