@@ -164,3 +164,35 @@ pub fn run_live_demo() {
         file.len()
     );
 }
+
+use std::net::ToSocketAddrs;
+
+pub fn run_listen(addr_str: &str) {
+    let mut rng = OsRng;
+    let node = MeshNode::bind(PeerIdentity::generate(&mut rng), addr_str).expect("bind");
+    println!("Listening on {}", node.local_addr());
+    println!("Node PeerId: {}", node.peer_id());
+    println!("Node is active. Waiting for incoming connections...");
+    std::thread::park();
+}
+
+pub fn run_send(addr_str: &str, file_path: &str) {
+    let addr = addr_str
+        .to_socket_addrs()
+        .expect("invalid addr")
+        .next()
+        .expect("resolve addr");
+    let mut rng = OsRng;
+    let node = MeshNode::bind(PeerIdentity::generate(&mut rng), "127.0.0.1:0").expect("bind");
+    let path = Path::new(file_path);
+    let bytes = fs::read(path).expect("read file");
+    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("file");
+
+    node.send_file_to(addr, name, &bytes).expect("send file");
+    println!(
+        "Successfully sent {} ({} bytes) to {}",
+        name,
+        bytes.len(),
+        addr
+    );
+}
