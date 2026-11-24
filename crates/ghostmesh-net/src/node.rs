@@ -93,4 +93,37 @@ impl MeshNode {
     pub fn local_addr(&self) -> SocketAddr {
         self.local_addr
     }
-}
+
+    fn start_accept_loop(&self, listener: TcpListener) {
+        let identity = Arc::clone(&self.identity);
+        let lww_map = Arc::clone(&self.lww_map);
+        let or_set = Arc::clone(&self.or_set);
+        let transfer_states = Arc::clone(&self.transfer_states);
+        let completed_files = Arc::clone(&self.completed_files);
+        let shutdown = Arc::clone(&self.shutdown);
+
+        std::thread::spawn(move || {
+            for stream in listener.incoming() {
+                if *shutdown.lock().unwrap() {
+                    break;
+                }
+                if let Ok(stream) = stream {
+                    let identity = Arc::clone(&identity);
+                    let lww = Arc::clone(&lww_map);
+                    let ors = Arc::clone(&or_set);
+                    let xfer = Arc::clone(&transfer_states);
+                    let comp = Arc::clone(&completed_files);
+                    std::thread::spawn(move || {
+                        let mut rng = rand_core::OsRng;
+                        if let Ok(mut enc) =
+                            crate::handshake::server_handshake(stream, &identity, &mut rng)
+                        {
+                            let _ = Self::handle_peer_session(
+                                &mut enc, lww, ors, xfer, comp,
+                            );
+                        }
+                    });
+                }
+            }
+        });
+    }
