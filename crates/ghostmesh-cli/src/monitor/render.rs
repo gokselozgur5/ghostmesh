@@ -11,3 +11,33 @@ pub fn render_header(tick: u64, width: usize) -> String {
         BRIGHT_GREEN, BOLD, title, CYAN, border, YELLOW, tick_str, RESET
     )
 }
+
+pub fn render_node_topology(nodes: &[MonitorNode], width: usize) -> String {
+    let mut out = String::new();
+    let border = "─".repeat(width.saturating_sub(35));
+    out.push_str(&format!(
+        "{}{}┌── ACTIVE MESH TOPOLOGY ({} NODES) {}\n",
+        BRIGHT_CYAN,
+        BOLD,
+        nodes.len(),
+        border
+    ));
+    for (i, node) in nodes.iter().enumerate() {
+        let (badge, color) = node.status.badge();
+        let branch = if i + 1 == nodes.len() { "└──" } else { "├──" };
+        out.push_str(&format!(
+            "{}{} {}{:<10}{} [{}] addr:{:<15} v:{} links:{}\n",
+            BRIGHT_CYAN,
+            branch,
+            BRIGHT_GREEN,
+            node.name,
+            color,
+            badge,
+            node.addr,
+            node.crdt_version,
+            node.active_links
+        ));
+    }
+    out.push_str(RESET);
+    out
+}
