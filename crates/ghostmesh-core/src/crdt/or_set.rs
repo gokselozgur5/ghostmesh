@@ -33,7 +33,7 @@ impl<T: Ord + Clone> OrSet<T> {
     }
 
     pub fn insert(&mut self, element: T) -> Tag {
-        self.next_seq += 1;
+        self.next_seq = self.next_seq.saturating_add(1);
         let tag = Tag {
             peer_id: self.peer_id,
             seq: self.next_seq,
@@ -68,10 +68,17 @@ impl<T: Ord + Clone> OrSet<T> {
     }
 
     pub fn merge(&mut self, other: Self) {
+        for record in &other.adds {
+            if record.tag.peer_id == self.peer_id && record.tag.seq > self.next_seq {
+                self.next_seq = record.tag.seq;
+            }
+        }
+        for tag in &other.removals {
+            if tag.peer_id == self.peer_id && tag.seq > self.next_seq {
+                self.next_seq = tag.seq;
+            }
+        }
         self.adds.extend(other.adds);
         self.removals.extend(other.removals);
-        if other.next_seq > self.next_seq {
-            self.next_seq = other.next_seq;
-        }
     }
 }
