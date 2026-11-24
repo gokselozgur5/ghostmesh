@@ -90,6 +90,8 @@ fn test_live_chunked_encrypted_file_transfer() {
         .unwrap();
 
     let completed = receiver_node.completed_files.lock().unwrap();
-    let received_bytes = completed.get(test_file_name).expect("file not found in receiver");
+    let received_bytes = completed
+        .get(test_file_name)
+        .expect("file not found in receiver");
     assert_eq!(received_bytes, &original_bytes);
 }

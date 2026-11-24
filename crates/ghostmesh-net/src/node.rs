@@ -60,7 +60,6 @@ pub struct MeshNode {
     shutdown: Arc<Mutex<bool>>,
 }
 
-
 impl MeshNode {
     pub fn bind(identity: PeerIdentity, bind_addr: &str) -> Result<Self, NodeError> {
         let listener = TcpListener::bind(bind_addr)?;
@@ -118,9 +117,7 @@ impl MeshNode {
                         if let Ok(mut enc) =
                             crate::handshake::server_handshake(stream, &identity, &mut rng)
                         {
-                            let _ = Self::handle_peer_session(
-                                &mut enc, lww, ors, xfer, comp,
-                            );
+                            let _ = Self::handle_peer_session(&mut enc, lww, ors, xfer, comp);
                         }
                     });
                 }
@@ -171,11 +168,24 @@ impl MeshNode {
                 }
                 NodeMessage::SendFileManifest { manifest } => {
                     let name = manifest.file_name.clone();
-                    transfer_states.lock().unwrap().insert(name, TransferState::new(manifest));
+                    transfer_states
+                        .lock()
+                        .unwrap()
+                        .insert(name, TransferState::new(manifest));
                     enc.send_encrypted(&serde_json::to_vec(&NodeMessage::Ack)?)?;
                 }
-                NodeMessage::SendFileChunk { file_name, chunk_index, data } => {
-                    Self::on_chunk(&file_name, chunk_index, &data, &transfer_states, &completed_files)?;
+                NodeMessage::SendFileChunk {
+                    file_name,
+                    chunk_index,
+                    data,
+                } => {
+                    Self::on_chunk(
+                        &file_name,
+                        chunk_index,
+                        &data,
+                        &transfer_states,
+                        &completed_files,
+                    )?;
                     enc.send_encrypted(&serde_json::to_vec(&NodeMessage::Ack)?)?;
                 }
                 NodeMessage::TransferComplete { .. } | NodeMessage::Ack => {}
@@ -218,7 +228,9 @@ impl MeshNode {
         let mut rng = rand_core::OsRng;
         let mut enc = crate::handshake::client_handshake(stream, &self.identity, &mut rng)?;
 
-        let manifest_msg = NodeMessage::SendFileManifest { manifest: manifest.clone() };
+        let manifest_msg = NodeMessage::SendFileManifest {
+            manifest: manifest.clone(),
+        };
         enc.send_encrypted(&serde_json::to_vec(&manifest_msg)?)?;
         let _ = enc.recv_encrypted()?;
 
