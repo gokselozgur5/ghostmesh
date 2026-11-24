@@ -58,7 +58,17 @@ use ghostmesh_core::identity::PeerIdentity;
 use ghostmesh_core::transfer::TransferState;
 use std::collections::HashMap;
 use std::net::{SocketAddr, TcpListener, TcpStream};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
+use std::thread::JoinHandle;
+
+struct PeerSlotGuard(Arc<AtomicUsize>);
+
+impl Drop for PeerSlotGuard {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, Ordering::SeqCst);
+    }
+}
 
 pub struct MeshNode {
     pub identity: Arc<PeerIdentity>,
@@ -67,7 +77,9 @@ pub struct MeshNode {
     pub or_set: Arc<Mutex<OrSet<String>>>,
     pub transfer_states: Arc<Mutex<HashMap<String, TransferState>>>,
     pub completed_files: Arc<Mutex<HashMap<String, Vec<u8>>>>,
-    shutdown: Arc<Mutex<bool>>,
+    active_peers: Arc<AtomicUsize>,
+    shutdown: Arc<AtomicBool>,
+    listener_handle: Mutex<Option<JoinHandle<()>>>,
 }
 
 impl MeshNode {
@@ -268,5 +280,11 @@ impl MeshNode {
             let _ = enc.recv_encrypted()?;
         }
         Ok(())
+    }
+}
+
+impl Drop for MeshNode {
+    fn drop(&mut self) {
+        self.shutdown();
     }
 }
