@@ -206,3 +206,34 @@ impl MeshNode {
         let _ = enc.recv_encrypted()?;
         Ok(())
     }
+
+    pub fn send_file_to(
+        &self,
+        peer_addr: SocketAddr,
+        file_name: &str,
+        bytes: &[u8],
+    ) -> Result<(), NodeError> {
+        let manifest = ChunkManifest::build(file_name.to_string(), bytes, 64 * 1024)?;
+        let stream = TcpStream::connect(peer_addr)?;
+        let mut rng = rand_core::OsRng;
+        let mut enc = crate::handshake::client_handshake(stream, &self.identity, &mut rng)?;
+
+        let manifest_msg = NodeMessage::SendFileManifest { manifest: manifest.clone() };
+        enc.send_encrypted(&serde_json::to_vec(&manifest_msg)?)?;
+        let _ = enc.recv_encrypted()?;
+
+        for chunk_info in &manifest.chunks {
+            let start = chunk_info.offset as usize;
+            let end = start + chunk_info.length;
+            let chunk_data = bytes[start..end].to_vec();
+            let chunk_msg = NodeMessage::SendFileChunk {
+                file_name: file_name.to_string(),
+                chunk_index: chunk_info.index,
+                data: chunk_data,
+            };
+            enc.send_encrypted(&serde_json::to_vec(&chunk_msg)?)?;
+            let _ = enc.recv_encrypted()?;
+        }
+        Ok(())
+    }
+}
