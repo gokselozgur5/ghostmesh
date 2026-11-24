@@ -35,3 +35,18 @@ fn test_loopback_udp_beacon_exchange() {
     assert_eq!(received_beacon.announcement.peer_id, sender_id.peer_id());
     assert_eq!(received_beacon.tcp_port, 8080);
 }
+
+#[test]
+fn test_mutated_tcp_port_fails_decode() {
+    let mut rng = rand_core::OsRng;
+    let identity = PeerIdentity::generate(&mut rng);
+    let beacon = DiscoveryBeacon::new(&identity, 8080, 1700000000);
+    let encoded = beacon.encode().unwrap();
+
+    let mut json: serde_json::Value = serde_json::from_slice(&encoded).unwrap();
+    json["tcp_port"] = serde_json::json!(9999);
+    let tampered = serde_json::to_vec(&json).unwrap();
+
+    let result = DiscoveryBeacon::decode(&tampered);
+    assert!(result.is_err(), "tampered tcp_port must fail verification");
+}
