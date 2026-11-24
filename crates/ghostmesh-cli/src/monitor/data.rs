@@ -43,3 +43,38 @@ impl TransferProgress {
         }
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct MonitorState {
+    pub tick: u64,
+    pub nodes: Vec<MonitorNode>,
+    pub matrix: Vec<Vec<Option<u32>>>,
+    pub transfers: Vec<TransferProgress>,
+    pub events: Vec<String>,
+}
+
+impl MonitorState {
+    pub fn new() -> Self {
+        Self {
+            tick: 0,
+            nodes: Vec::new(),
+            matrix: Vec::new(),
+            transfers: Vec::new(),
+            events: Vec::new(),
+        }
+    }
+
+    pub fn add_event(&mut self, ev: String) {
+        if self.events.len() >= 8 {
+            self.events.remove(0);
+        }
+        self.events.push(ev);
+    }
+}
+
+impl Default for MonitorState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
