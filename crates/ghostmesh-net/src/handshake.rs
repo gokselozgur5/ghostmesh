@@ -165,9 +165,26 @@ pub fn client_handshake<R: rand_core::RngCore + rand_core::CryptoRng>(
 
     let peer_bytes = crate::wire::read_frame(&mut stream)?;
     let peer_hello: HandshakeHello = serde_json::from_slice(&peer_bytes)?;
-    let peer_kx_pub = peer_hello.verify(RESPONDER_ROLE)?;
 
-    let (tx_cipher, rx_cipher) = kx.derive_session_keys(&peer_kx_pub, true);
+    let mut transcript = Vec::with_capacity(160);
+    transcript.extend_from_slice(&identity.peer_id().0);
+    transcript.extend_from_slice(identity.verifying_key().as_bytes());
+    transcript.extend_from_slice(kx.public_key().as_bytes());
+    transcript.extend_from_slice(&peer_hello.peer_id.0);
+    transcript.extend_from_slice(&peer_hello.verifying_key_bytes);
+    transcript.extend_from_slice(&peer_hello.ephemeral_public);
+
+    let peer_kx_pub = peer_hello.verify_server(&transcript)?;
+
+    let (mut tx_cipher, rx_cipher) =
+        kx.derive_session_keys_with_transcript(&peer_kx_pub, true, &transcript)?;
+
+    let (nonce, ct) = tx_cipher.encrypt(b"ghostmesh-handshake-finish-v1")?;
+    let mut finish_frame = Vec::with_capacity(8 + ct.len());
+    finish_frame.extend_from_slice(&nonce.to_be_bytes());
+    finish_frame.extend_from_slice(&ct);
+    crate::wire::write_frame(&mut stream, &finish_frame)?;
+
     Ok(EncryptedStream {
         stream,
         tx_cipher,
@@ -186,11 +203,31 @@ pub fn server_handshake<R: rand_core::RngCore + rand_core::CryptoRng>(
     let peer_kx_pub = peer_hello.verify(INITIATOR_ROLE)?;
 
     let kx = KeyExchange::new(csprng);
-    let my_hello = HandshakeHello::new(identity, kx.public_key(), RESPONDER_ROLE);
+    let mut transcript = Vec::with_capacity(160);
+    transcript.extend_from_slice(&peer_hello.peer_id.0);
+    transcript.extend_from_slice(&peer_hello.verifying_key_bytes);
+    transcript.extend_from_slice(&peer_hello.ephemeral_public);
+    transcript.extend_from_slice(&identity.peer_id().0);
+    transcript.extend_from_slice(identity.verifying_key().as_bytes());
+    transcript.extend_from_slice(kx.public_key().as_bytes());
+
+    let my_hello = HandshakeHello::new_server(identity, kx.public_key(), &transcript);
     let my_bytes = serde_json::to_vec(&my_hello)?;
     crate::wire::write_frame(&mut stream, &my_bytes)?;
 
-    let (tx_cipher, rx_cipher) = kx.derive_session_keys(&peer_kx_pub, false);
+    let (tx_cipher, mut rx_cipher) =
+        kx.derive_session_keys_with_transcript(&peer_kx_pub, false, &transcript)?;
+
+    let confirm_frame = crate::wire::read_frame(&mut stream)?;
+    if confirm_frame.len() < 8 {
+        return Err(HandshakeError::Crypto(ghostmesh_core::CryptoError::DecryptionFailed));
+    }
+    let nonce = u64::from_be_bytes(confirm_frame[0..8].try_into().unwrap());
+    let plaintext = rx_cipher.decrypt(nonce, &confirm_frame[8..])?;
+    if plaintext != b"ghostmesh-handshake-finish-v1" {
+        return Err(HandshakeError::InvalidSignature);
+    }
+
     Ok(EncryptedStream {
         stream,
         tx_cipher,
