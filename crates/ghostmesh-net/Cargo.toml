@@ -1,0 +1,18 @@
+[package]
+name = "ghostmesh-net"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Encrypted P2P transport, UDP LAN discovery, and live mesh node runtime for ghostmesh"
+
+[dependencies]
+ghostmesh-core = { path = "../ghostmesh-core" }
+ed25519-dalek.workspace = true
+x25519-dalek.workspace = true
+blake3.workspace = true
+rand_core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
