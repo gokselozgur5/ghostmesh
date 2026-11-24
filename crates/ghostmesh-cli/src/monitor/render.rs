@@ -24,7 +24,11 @@ pub fn render_node_topology(nodes: &[MonitorNode], width: usize) -> String {
     ));
     for (i, node) in nodes.iter().enumerate() {
         let (badge, color) = node.status.badge();
-        let branch = if i + 1 == nodes.len() { "└──" } else { "├──" };
+        let branch = if i + 1 == nodes.len() {
+            "└──"
+        } else {
+            "├──"
+        };
         out.push_str(&format!(
             "{}{} {}{:<10}{} [{}] addr:{:<15} v:{} links:{}\n",
             BRIGHT_CYAN,
@@ -82,11 +86,7 @@ pub fn render_latency_matrix(
     out
 }
 
-pub fn render_transfer_bars(
-    transfers: &[TransferProgress],
-    width: usize,
-    tick: u64,
-) -> String {
+pub fn render_transfer_bars(transfers: &[TransferProgress], width: usize, tick: u64) -> String {
     let mut out = String::new();
     let border = "─".repeat(width.saturating_sub(35));
     out.push_str(&format!(
@@ -109,7 +109,15 @@ pub fn render_transfer_bars(
             _ => "▒",
         };
         let bar: String = (0..bar_len)
-            .map(|i| if i < filled { "█" } else if i == filled && p < 100 { anim_char } else { "░" })
+            .map(|i| {
+                if i < filled {
+                    "█"
+                } else if i == filled && p < 100 {
+                    anim_char
+                } else {
+                    "░"
+                }
+            })
             .collect();
         out.push_str(&format!(
             "│ {:<12} [{}{}{}] {:>3}% ({}/{} chunks) hash:{}\n",

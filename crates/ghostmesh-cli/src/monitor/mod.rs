@@ -2,7 +2,7 @@ pub mod ansi;
 pub mod data;
 pub mod render;
 
-use ansi::{CLEAR_SCREEN, HIDE_CURSOR, SHOW_CURSOR, TermSize};
+use ansi::{TermSize, CLEAR_SCREEN, HIDE_CURSOR, SHOW_CURSOR};
 use data::{advance_simulation, mock_initial_state, MonitorState};
 use render::render_frame;
 use std::io::{self, Write};

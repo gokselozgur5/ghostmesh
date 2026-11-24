@@ -149,4 +149,3 @@ pub fn advance_simulation(state: &mut MonitorState) {
         }
     }
 }
-
