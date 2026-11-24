@@ -26,6 +26,21 @@ fn main() {
             }
             ops::run_verify(&args[2], &args[3]);
         }
+        "live-demo" => ops::run_live_demo(),
+        "listen" => {
+            if args.len() < 3 {
+                eprintln!("Usage: ghostmesh listen <addr>");
+                std::process::exit(1);
+            }
+            ops::run_listen(&args[2]);
+        }
+        "send" => {
+            if args.len() < 4 {
+                eprintln!("Usage: ghostmesh send <addr> <file>");
+                std::process::exit(1);
+            }
+            ops::run_send(&args[2], &args[3]);
+        }
         _ => {
             ops::print_usage();
             std::process::exit(1);
