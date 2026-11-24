@@ -65,14 +65,22 @@ impl PeerIdentity {
         let signing_key = SigningKey::generate(csprng);
         let verifying_key = signing_key.verifying_key();
         let peer_id = PeerId::from_verifying_key(&verifying_key);
-        Self { signing_key, verifying_key, peer_id }
+        Self {
+            signing_key,
+            verifying_key,
+            peer_id,
+        }
     }
 
     pub fn from_seed(seed: &[u8; 32]) -> Self {
         let signing_key = SigningKey::from_bytes(seed);
         let verifying_key = signing_key.verifying_key();
         let peer_id = PeerId::from_verifying_key(&verifying_key);
-        Self { signing_key, verifying_key, peer_id }
+        Self {
+            signing_key,
+            verifying_key,
+            peer_id,
+        }
     }
 
     pub fn peer_id(&self) -> PeerId {

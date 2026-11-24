@@ -34,7 +34,9 @@ fn test_cli_sim_sync() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("Alice peer_id:"));
     assert!(stdout.contains("Bob peer_id:"));
-    assert!(stdout.contains("sim-sync: E2EE handshake, CRDT sync & convergence verified successfully."));
+    assert!(
+        stdout.contains("sim-sync: E2EE handshake, CRDT sync & convergence verified successfully.")
+    );
 }
 
 #[test]
@@ -43,8 +45,11 @@ fn test_cli_pack_and_verify() {
     let sample_file = temp_dir.join("ghostmesh_sample.txt");
     let manifest_file = temp_dir.join("ghostmesh_sample.json");
 
-    std::fs::write(&sample_file, b"Ghostmesh CLI e2e test payload with BLAKE3 chunks.")
-        .expect("write sample");
+    std::fs::write(
+        &sample_file,
+        b"Ghostmesh CLI e2e test payload with BLAKE3 chunks.",
+    )
+    .expect("write sample");
 
     let pack_output = Command::new(env!("CARGO_BIN_EXE_ghostmesh-cli"))
         .args(["pack", sample_file.to_str().unwrap()])

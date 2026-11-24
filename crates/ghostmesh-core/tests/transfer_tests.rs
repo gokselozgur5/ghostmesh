@@ -14,8 +14,11 @@ fn chunking_manifest_and_reassembly() {
     let indices = [3, 1, 4, 0, 2];
     for &idx in &indices {
         let chunk_info = &manifest.chunks[idx];
-        let slice = &raw_data[chunk_info.offset as usize..chunk_info.offset as usize + chunk_info.length];
-        state.verify_and_store_chunk(idx, slice).expect("valid chunk");
+        let slice =
+            &raw_data[chunk_info.offset as usize..chunk_info.offset as usize + chunk_info.length];
+        state
+            .verify_and_store_chunk(idx, slice)
+            .expect("valid chunk");
     }
 
     assert!(state.is_complete());
