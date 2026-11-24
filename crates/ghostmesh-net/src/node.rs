@@ -157,6 +157,24 @@ impl MeshNode {
         });
     }
 
+    fn spawn_peer_worker(
+        stream: TcpStream,
+        identity: Arc<PeerIdentity>,
+        lww: Arc<Mutex<LwwMap<String, String>>>,
+        ors: Arc<Mutex<OrSet<String>>>,
+        xfer: Arc<Mutex<HashMap<String, TransferState>>>,
+        comp: Arc<Mutex<HashMap<String, Vec<u8>>>>,
+        slot_guard: PeerSlotGuard,
+    ) {
+        std::thread::spawn(move || {
+            let _guard = slot_guard;
+            let mut rng = rand_core::OsRng;
+            if let Ok(mut enc) = crate::handshake::server_handshake(stream, &identity, &mut rng) {
+                let _ = Self::handle_peer_session(&mut enc, lww, ors, xfer, comp);
+            }
+        });
+    }
+
     fn on_chunk(
         name: &str,
         idx: usize,
