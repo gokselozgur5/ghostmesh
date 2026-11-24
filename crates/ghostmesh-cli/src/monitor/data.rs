@@ -122,3 +122,31 @@ pub fn mock_initial_state() -> MonitorState {
     state
 }
 
+pub fn advance_simulation(state: &mut MonitorState) {
+    state.tick += 1;
+    for t in &mut state.transfers {
+        if t.completed_chunks < t.total_chunks {
+            t.completed_chunks += 1;
+            if t.completed_chunks == t.total_chunks {
+                state.add_event(format!(
+                    "[CHUNK] File {} assembly complete (root: {})",
+                    t.file_name, t.root_hash_prefix
+                ));
+            }
+        }
+    }
+    if state.tick % 5 == 0 {
+        if let Some(r) = state.matrix.get_mut(0).and_then(|row| row.get_mut(1)) {
+            *r = Some(3 + ((state.tick % 4) as u32));
+        }
+    }
+    if state.tick == 18 {
+        if let Some(c) = state.nodes.get_mut(2) {
+            c.status = NodeStatus::Online;
+            c.crdt_version = 142;
+            c.active_links = 3;
+            state.add_event("[SYNC] CHARLIE-03 reached CRDT LWW convergence".into());
+        }
+    }
+}
+
