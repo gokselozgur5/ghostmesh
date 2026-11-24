@@ -111,3 +111,49 @@ impl EncryptedStream {
         Ok(plaintext)
     }
 }
+
+pub fn client_handshake<R: rand_core::RngCore + rand_core::CryptoRng>(
+    mut stream: TcpStream,
+    identity: &PeerIdentity,
+    csprng: &mut R,
+) -> Result<EncryptedStream, HandshakeError> {
+    let kx = KeyExchange::new(csprng);
+    let my_hello = HandshakeHello::new(identity, kx.public_key(), INITIATOR_ROLE);
+    let my_bytes = serde_json::to_vec(&my_hello)?;
+    crate::wire::write_frame(&mut stream, &my_bytes)?;
+
+    let peer_bytes = crate::wire::read_frame(&mut stream)?;
+    let peer_hello: HandshakeHello = serde_json::from_slice(&peer_bytes)?;
+    let peer_kx_pub = peer_hello.verify(RESPONDER_ROLE)?;
+
+    let (tx_cipher, rx_cipher) = kx.derive_session_keys(&peer_kx_pub, true);
+    Ok(EncryptedStream {
+        stream,
+        tx_cipher,
+        rx_cipher,
+        remote_peer: peer_hello.peer_id,
+    })
+}
+
+pub fn server_handshake<R: rand_core::RngCore + rand_core::CryptoRng>(
+    mut stream: TcpStream,
+    identity: &PeerIdentity,
+    csprng: &mut R,
+) -> Result<EncryptedStream, HandshakeError> {
+    let peer_bytes = crate::wire::read_frame(&mut stream)?;
+    let peer_hello: HandshakeHello = serde_json::from_slice(&peer_bytes)?;
+    let peer_kx_pub = peer_hello.verify(INITIATOR_ROLE)?;
+
+    let kx = KeyExchange::new(csprng);
+    let my_hello = HandshakeHello::new(identity, kx.public_key(), RESPONDER_ROLE);
+    let my_bytes = serde_json::to_vec(&my_hello)?;
+    crate::wire::write_frame(&mut stream, &my_bytes)?;
+
+    let (tx_cipher, rx_cipher) = kx.derive_session_keys(&peer_kx_pub, false);
+    Ok(EncryptedStream {
+        stream,
+        tx_cipher,
+        rx_cipher,
+        remote_peer: peer_hello.peer_id,
+    })
+}
