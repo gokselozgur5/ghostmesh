@@ -144,10 +144,14 @@ impl MeshNode {
     ) -> Result<(), NodeError> {
         let mut states = xfer.lock().unwrap();
         if let Some(state) = states.get_mut(name) {
+            if state.is_chunk_received(idx) {
+                return Ok(());
+            }
             state.verify_and_store_chunk(idx, data)?;
             if state.is_complete() {
                 let bytes = state.reassemble()?;
                 comp.lock().unwrap().insert(name.to_string(), bytes);
+                states.remove(name);
             }
         }
         Ok(())
