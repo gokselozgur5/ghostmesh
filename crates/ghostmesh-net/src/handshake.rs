@@ -1,6 +1,4 @@
-use ed25519_dalek::{
-    Signature, Verifier, VerifyingKey, PUBLIC_KEY_LENGTH, SIGNATURE_LENGTH,
-};
+use ed25519_dalek::{Signature, Verifier, VerifyingKey, PUBLIC_KEY_LENGTH, SIGNATURE_LENGTH};
 use ghostmesh_core::identity::{IdentityError, PeerId, PeerIdentity};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -34,11 +32,7 @@ pub struct HandshakeHello {
 }
 
 impl HandshakeHello {
-    pub fn new(
-        identity: &PeerIdentity,
-        ephemeral_public: &X25519PublicKey,
-        role: &[u8],
-    ) -> Self {
+    pub fn new(identity: &PeerIdentity, ephemeral_public: &X25519PublicKey, role: &[u8]) -> Self {
         let mut msg = Vec::with_capacity(64);
         msg.extend_from_slice(ephemeral_public.as_bytes());
         msg.extend_from_slice(role);
@@ -105,7 +99,9 @@ impl EncryptedStream {
     pub fn recv_encrypted(&mut self) -> Result<Vec<u8>, HandshakeError> {
         let framed = crate::wire::read_frame(&mut self.stream)?;
         if framed.len() < 8 {
-            return Err(HandshakeError::Crypto(ghostmesh_core::CryptoError::DecryptionFailed));
+            return Err(HandshakeError::Crypto(
+                ghostmesh_core::CryptoError::DecryptionFailed,
+            ));
         }
         let nonce = u64::from_be_bytes(framed[0..8].try_into().unwrap());
         let ciphertext = &framed[8..];
