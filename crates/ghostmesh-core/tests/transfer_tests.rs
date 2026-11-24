@@ -60,7 +60,10 @@ fn zero_byte_manifest_and_path_traversal_validation() {
     assert_eq!(zero_state.reassemble().unwrap(), b"");
 
     let traversal_err = ChunkManifest::build("../secret.txt".to_string(), b"data", 1024);
-    assert!(matches!(traversal_err, Err(TransferError::InvalidFileName(_))));
+    assert!(matches!(
+        traversal_err,
+        Err(TransferError::InvalidFileName(_))
+    ));
 
     let abs_err = ChunkManifest::build("/etc/passwd".to_string(), b"data", 1024);
     assert!(matches!(abs_err, Err(TransferError::InvalidFileName(_))));

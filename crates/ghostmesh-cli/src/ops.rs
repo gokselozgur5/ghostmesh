@@ -102,7 +102,9 @@ pub fn run_pack(path_str: &str) {
 pub fn run_verify(manifest_path: &str, file_path: &str) {
     let m_content = fs::read_to_string(manifest_path).expect("read manifest");
     let manifest: ChunkManifest = serde_json::from_str(&m_content).expect("parse manifest");
-    manifest.validate(64 * 1024 * 1024).expect("invalid manifest");
+    manifest
+        .validate(64 * 1024 * 1024)
+        .expect("invalid manifest");
     let data = fs::read(file_path).expect("read data");
 
     let mut state = TransferState::new(manifest.clone()).expect("init transfer state");
