@@ -49,3 +49,48 @@ fn test_tampered_signature_rejection() {
     }
     assert!(hello.verify(INITIATOR_ROLE).is_err());
 }
+
+#[test]
+fn test_uks_mitm_identity_substitution_rejected() {
+    let mut rng = rand_core::OsRng;
+    let alice = PeerIdentity::generate(&mut rng);
+    let bob = PeerIdentity::generate(&mut rng);
+    let mallory = PeerIdentity::generate(&mut rng);
+
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let bob_addr = listener.local_addr().unwrap();
+
+    let server_handle = thread::spawn(move || {
+        let (stream, _) = listener.accept().unwrap();
+        let mut rng = rand_core::OsRng;
+        server_handshake(stream, &bob, &mut rng)
+    });
+
+    let stream = TcpStream::connect(bob_addr).unwrap();
+    let kx_alice = ghostmesh_core::KeyExchange::new(&mut rng);
+    // Mallory re-signs Alice's ephemeral key with Mallory's identity
+    let mallory_hello = HandshakeHello::new(&mallory, kx_alice.public_key(), INITIATOR_ROLE);
+    let mut mallory_stream = stream;
+    let frame = serde_json::to_vec(&mallory_hello).unwrap();
+    ghostmesh_net::wire::write_frame(&mut mallory_stream, &frame).unwrap();
+
+    // Alice expects Bob to talk to Alice, but Bob thinks he's talking to Mallory
+    let bob_resp_frame = ghostmesh_net::wire::read_frame(&mut mallory_stream).unwrap();
+    let bob_hello: HandshakeHello = serde_json::from_slice(&bob_resp_frame).unwrap();
+
+    let mut alice_transcript = Vec::with_capacity(160);
+    alice_transcript.extend_from_slice(&alice.peer_id().0);
+    alice_transcript.extend_from_slice(alice.verifying_key().as_bytes());
+    alice_transcript.extend_from_slice(kx_alice.public_key().as_bytes());
+    alice_transcript.extend_from_slice(&bob_hello.peer_id.0);
+    alice_transcript.extend_from_slice(&bob_hello.verifying_key_bytes);
+    alice_transcript.extend_from_slice(&bob_hello.ephemeral_public);
+
+    // Alice verifies Bob's signature with Alice's identity in transcript -> must fail because Bob signed with Mallory's identity!
+    assert!(bob_hello.verify_server(&alice_transcript).is_err());
+
+    // Close client connection so server does not hang waiting for finish frame
+    drop(mallory_stream);
+    let server_res = server_handle.join().unwrap();
+    assert!(server_res.is_err());
+}
