@@ -18,10 +18,18 @@ pub enum CryptoError {
     NonceExhausted,
     #[error("received nonce {0} is out of order or replayed, expected {1}")]
     ReplayOrOutOfOrder(u64, u64),
+    #[error("invalid peer public key (non-contributory diffie-hellman point)")]
+    InvalidPeerPublicKey,
 }
 
 #[derive(Clone, Zeroize, ZeroizeOnDrop)]
 pub struct SessionKey(pub [u8; 32]);
+
+impl std::fmt::Debug for SessionKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "SessionKey([REDACTED])")
+    }
+}
 
 pub struct KeyExchange {
     secret: EphemeralSecret,
@@ -43,35 +51,50 @@ impl KeyExchange {
         self,
         peer_public: &X25519PublicKey,
         is_initiator: bool,
-    ) -> (SessionCipher, SessionCipher) {
-        let shared_secret = self.secret.diffie_hellman(peer_public);
+    ) -> Result<(SessionCipher, SessionCipher), CryptoError> {
+        self.derive_session_keys_with_transcript(peer_public, is_initiator, &[])
+    }
+
+    pub fn derive_session_keys_with_transcript(
+        self,
+        peer_public: &X25519PublicKey,
+        is_initiator: bool,
+        transcript: &[u8],
+    ) -> Result<(SessionCipher, SessionCipher), CryptoError> {
+        let shared_secret = match self.secret.diffie_hellman(peer_public) {
+            ss if !ss.was_contributory() => return Err(CryptoError::InvalidPeerPublicKey),
+            ss => ss,
+        };
 
         let mut initiator_hasher =
             blake3::Hasher::new_derive_key("ghostmesh-kdf-session-keys-initiator-to-responder-v1");
         initiator_hasher.update(KDF_DOMAIN);
         initiator_hasher.update(shared_secret.as_bytes());
+        initiator_hasher.update(transcript);
         let init_to_resp = *initiator_hasher.finalize().as_bytes();
 
         let mut responder_hasher =
             blake3::Hasher::new_derive_key("ghostmesh-kdf-session-keys-responder-to-initiator-v1");
         responder_hasher.update(KDF_DOMAIN);
         responder_hasher.update(shared_secret.as_bytes());
+        responder_hasher.update(transcript);
         let resp_to_init = *responder_hasher.finalize().as_bytes();
 
         if is_initiator {
-            (
+            Ok((
                 SessionCipher::new(SessionKey(init_to_resp)),
                 SessionCipher::new(SessionKey(resp_to_init)),
-            )
+            ))
         } else {
-            (
+            Ok((
                 SessionCipher::new(SessionKey(resp_to_init)),
                 SessionCipher::new(SessionKey(init_to_resp)),
-            )
+            ))
         }
     }
 }
 
+#[derive(Debug)]
 pub struct SessionCipher {
     key: SessionKey,
     next_nonce: u64,
