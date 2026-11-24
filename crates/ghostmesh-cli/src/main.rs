@@ -1,3 +1,4 @@
+pub mod monitor;
 pub mod ops;
 
 use std::env;
