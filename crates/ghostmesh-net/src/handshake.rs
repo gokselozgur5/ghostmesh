@@ -46,6 +46,24 @@ impl HandshakeHello {
         }
     }
 
+    pub fn new_server(
+        identity: &PeerIdentity,
+        ephemeral_public: &X25519PublicKey,
+        transcript: &[u8],
+    ) -> Self {
+        let mut msg = Vec::with_capacity(transcript.len() + RESPONDER_ROLE.len());
+        msg.extend_from_slice(transcript);
+        msg.extend_from_slice(RESPONDER_ROLE);
+        let sig = identity.sign(&msg);
+
+        Self {
+            peer_id: identity.peer_id(),
+            verifying_key_bytes: identity.verifying_key().to_bytes(),
+            ephemeral_public: *ephemeral_public.as_bytes(),
+            signature: sig.to_vec(),
+        }
+    }
+
     pub fn verify(&self, expected_role: &[u8]) -> Result<X25519PublicKey, HandshakeError> {
         let vk = VerifyingKey::from_bytes(&self.verifying_key_bytes)
             .map_err(|_| HandshakeError::InvalidSignature)?;
@@ -55,6 +73,31 @@ impl HandshakeHello {
         let mut msg = Vec::with_capacity(64);
         msg.extend_from_slice(&self.ephemeral_public);
         msg.extend_from_slice(expected_role);
+
+        if self.signature.len() != SIGNATURE_LENGTH {
+            return Err(HandshakeError::InvalidSignature);
+        }
+        let sig_arr: [u8; SIGNATURE_LENGTH] = self
+            .signature
+            .as_slice()
+            .try_into()
+            .map_err(|_| HandshakeError::InvalidSignature)?;
+        let sig = Signature::from_bytes(&sig_arr);
+        vk.verify(&msg, &sig)
+            .map_err(|_| HandshakeError::InvalidSignature)?;
+
+        Ok(X25519PublicKey::from(self.ephemeral_public))
+    }
+
+    pub fn verify_server(&self, transcript: &[u8]) -> Result<X25519PublicKey, HandshakeError> {
+        let vk = VerifyingKey::from_bytes(&self.verifying_key_bytes)
+            .map_err(|_| HandshakeError::InvalidSignature)?;
+        if self.peer_id != PeerId::from_verifying_key(&vk) {
+            return Err(HandshakeError::PeerIdMismatch);
+        }
+        let mut msg = Vec::with_capacity(transcript.len() + RESPONDER_ROLE.len());
+        msg.extend_from_slice(transcript);
+        msg.extend_from_slice(RESPONDER_ROLE);
 
         if self.signature.len() != SIGNATURE_LENGTH {
             return Err(HandshakeError::InvalidSignature);
