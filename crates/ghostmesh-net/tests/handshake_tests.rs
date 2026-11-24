@@ -35,3 +35,17 @@ fn test_loopback_encrypted_handshake() {
 
     server_handle.join().unwrap();
 }
+
+#[test]
+fn test_tampered_signature_rejection() {
+    let mut rng = rand_core::OsRng;
+    let alice_identity = PeerIdentity::generate(&mut rng);
+    let kx = ghostmesh_core::KeyExchange::new(&mut rng);
+    let mut hello = HandshakeHello::new(&alice_identity, kx.public_key(), INITIATOR_ROLE);
+
+    // Tamper with signature
+    if let Some(byte) = hello.signature.first_mut() {
+        *byte ^= 0xff;
+    }
+    assert!(hello.verify(INITIATOR_ROLE).is_err());
+}
