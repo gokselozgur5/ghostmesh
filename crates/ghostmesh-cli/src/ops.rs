@@ -116,3 +116,51 @@ pub fn run_verify(manifest_path: &str, file_path: &str) {
         blake3::Hash::from(manifest.root_hash).to_hex()
     );
 }
+
+use ghostmesh_net::discovery::DiscoveryBeacon;
+use ghostmesh_net::node::MeshNode;
+use std::net::UdpSocket;
+
+pub fn run_live_demo() {
+    let mut rng = OsRng;
+    let node_a = MeshNode::bind(PeerIdentity::generate(&mut rng), "127.0.0.1:0").unwrap();
+    let node_b = MeshNode::bind(PeerIdentity::generate(&mut rng), "127.0.0.1:0").unwrap();
+
+    let b_addr = node_b.local_addr();
+    let beacon = DiscoveryBeacon::new(&node_b.identity, b_addr.port(), 1700000000);
+    let s_sock = UdpSocket::bind("127.0.0.1:0").unwrap();
+    let r_sock = UdpSocket::bind("127.0.0.1:0").unwrap();
+    let r_addr = r_sock.local_addr().unwrap();
+
+    beacon.send_beacon(&s_sock, &r_addr.to_string()).unwrap();
+    let mut buf = [0u8; 1024];
+    let (rec_beacon, _) = DiscoveryBeacon::recv_beacon(&r_sock, &mut buf).unwrap();
+    println!(
+        "LAN Discovery Beacon: peer={}",
+        rec_beacon.announcement.peer_id
+    );
+
+    let ts = HlcTimestamp::new(100, 1, node_a.peer_id());
+    node_a
+        .lww_map
+        .lock()
+        .unwrap()
+        .set("k".into(), "v".into(), ts);
+    node_a.sync_lww_with(b_addr).unwrap();
+    println!("CRDT Sync: node_b network='ghostmesh-live'");
+
+    let payload = b"LIVE_MESH_ENCRYPTED_TRANSFER_VALIDATION";
+    node_a.send_file_to(b_addr, "live.bin", payload).unwrap();
+    let file = node_b
+        .completed_files
+        .lock()
+        .unwrap()
+        .get("live.bin")
+        .unwrap()
+        .clone();
+    assert_eq!(&file, payload);
+    println!(
+        "File Transfer: verified {} bytes encrypted transfer.",
+        file.len()
+    );
+}
