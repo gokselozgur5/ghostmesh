@@ -125,36 +125,44 @@ impl MeshNode {
         self.local_addr
     }
 
-    fn start_accept_loop(&self, listener: TcpListener) {
+    fn start_accept_loop(&self, listener: TcpListener) -> JoinHandle<()> {
         let identity = Arc::clone(&self.identity);
         let lww_map = Arc::clone(&self.lww_map);
         let or_set = Arc::clone(&self.or_set);
         let transfer_states = Arc::clone(&self.transfer_states);
         let completed_files = Arc::clone(&self.completed_files);
+        let active_peers = Arc::clone(&self.active_peers);
         let shutdown = Arc::clone(&self.shutdown);
 
         std::thread::spawn(move || {
-            for stream in listener.incoming() {
-                if *shutdown.lock().unwrap() {
-                    break;
-                }
-                if let Ok(stream) = stream {
-                    let identity = Arc::clone(&identity);
-                    let lww = Arc::clone(&lww_map);
-                    let ors = Arc::clone(&or_set);
-                    let xfer = Arc::clone(&transfer_states);
-                    let comp = Arc::clone(&completed_files);
-                    std::thread::spawn(move || {
-                        let mut rng = rand_core::OsRng;
-                        if let Ok(mut enc) =
-                            crate::handshake::server_handshake(stream, &identity, &mut rng)
-                        {
-                            let _ = Self::handle_peer_session(&mut enc, lww, ors, xfer, comp);
+            while !shutdown.load(Ordering::SeqCst) {
+                match listener.accept() {
+                    Ok((stream, _)) => {
+                        if active_peers.load(Ordering::SeqCst) >= MAX_CONCURRENT_PEERS {
+                            continue;
                         }
-                    });
+                        active_peers.fetch_add(1, Ordering::SeqCst);
+                        let _ = stream.set_nonblocking(false);
+                        let _ = stream.set_read_timeout(Some(IO_TIMEOUT));
+                        let _ = stream.set_write_timeout(Some(IO_TIMEOUT));
+                        let guard = PeerSlotGuard(Arc::clone(&active_peers));
+                        Self::spawn_peer_worker(
+                            stream,
+                            Arc::clone(&identity),
+                            Arc::clone(&lww_map),
+                            Arc::clone(&or_set),
+                            Arc::clone(&transfer_states),
+                            Arc::clone(&completed_files),
+                            guard,
+                        );
+                    }
+                    Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                        std::thread::sleep(Duration::from_millis(15));
+                    }
+                    Err(_) => break,
                 }
             }
-        });
+        })
     }
 
     fn spawn_peer_worker(
