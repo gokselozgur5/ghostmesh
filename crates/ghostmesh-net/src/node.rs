@@ -212,7 +212,9 @@ impl MeshNode {
     }
 
     pub fn sync_lww_with(&self, peer_addr: SocketAddr) -> Result<(), NodeError> {
-        let stream = TcpStream::connect(peer_addr)?;
+        let stream = TcpStream::connect_timeout(&peer_addr, IO_TIMEOUT)?;
+        stream.set_read_timeout(Some(IO_TIMEOUT))?;
+        stream.set_write_timeout(Some(IO_TIMEOUT))?;
         let mut rng = rand_core::OsRng;
         let mut enc = crate::handshake::client_handshake(stream, &self.identity, &mut rng)?;
 
@@ -241,7 +243,9 @@ impl MeshNode {
         bytes: &[u8],
     ) -> Result<(), NodeError> {
         let manifest = ChunkManifest::build(file_name.to_string(), bytes, 64 * 1024)?;
-        let stream = TcpStream::connect(peer_addr)?;
+        let stream = TcpStream::connect_timeout(&peer_addr, IO_TIMEOUT)?;
+        stream.set_read_timeout(Some(IO_TIMEOUT))?;
+        stream.set_write_timeout(Some(IO_TIMEOUT))?;
         let mut rng = rand_core::OsRng;
         let mut enc = crate::handshake::client_handshake(stream, &self.identity, &mut rng)?;
 
