@@ -81,3 +81,47 @@ pub fn render_latency_matrix(
     }
     out
 }
+
+pub fn render_transfer_bars(
+    transfers: &[TransferProgress],
+    width: usize,
+    tick: u64,
+) -> String {
+    let mut out = String::new();
+    let border = "─".repeat(width.saturating_sub(35));
+    out.push_str(&format!(
+        "{}{}┌── ENCRYPTED CHUNK TRANSFERS {}\n",
+        BRIGHT_CYAN, BOLD, border
+    ));
+    if transfers.is_empty() {
+        out.push_str("│ [IDLE] No active chunk transfers\n");
+        return out;
+    }
+
+    for t in transfers {
+        let p = t.percent();
+        let bar_len = 24;
+        let filled = (bar_len * p as usize) / 100;
+        let anim_char = match (tick + t.completed_chunks as u64) % 4 {
+            0 => "▰",
+            1 => "▱",
+            2 => "▓",
+            _ => "▒",
+        };
+        let bar: String = (0..bar_len)
+            .map(|i| if i < filled { "█" } else if i == filled && p < 100 { anim_char } else { "░" })
+            .collect();
+        out.push_str(&format!(
+            "│ {:<12} [{}{}{}] {:>3}% ({}/{} chunks) hash:{}\n",
+            t.file_name,
+            BRIGHT_GREEN,
+            bar,
+            RESET,
+            p,
+            t.completed_chunks,
+            t.total_chunks,
+            t.root_hash_prefix
+        ));
+    }
+    out
+}
