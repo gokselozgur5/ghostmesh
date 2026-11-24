@@ -145,3 +145,41 @@ impl MeshNode {
         }
         Ok(())
     }
+
+    fn handle_peer_session(
+        enc: &mut crate::handshake::EncryptedStream,
+        lww_map: Arc<Mutex<LwwMap<String, String>>>,
+        _or_set: Arc<Mutex<OrSet<String>>>,
+        transfer_states: Arc<Mutex<HashMap<String, TransferState>>>,
+        completed_files: Arc<Mutex<HashMap<String, Vec<u8>>>>,
+    ) -> Result<(), NodeError> {
+        loop {
+            let plaintext = match enc.recv_encrypted() {
+                Ok(p) => p,
+                Err(_) => break,
+            };
+            let msg: NodeMessage = serde_json::from_slice(&plaintext)?;
+            match msg {
+                NodeMessage::SyncLwwRequest => {
+                    let delta = lww_map.lock().unwrap().delta_since(None);
+                    let resp = NodeMessage::SyncLwwResponse { delta };
+                    enc.send_encrypted(&serde_json::to_vec(&resp)?)?;
+                }
+                NodeMessage::SyncLwwResponse { delta } => {
+                    lww_map.lock().unwrap().merge(delta);
+                    enc.send_encrypted(&serde_json::to_vec(&NodeMessage::Ack)?)?;
+                }
+                NodeMessage::SendFileManifest { manifest } => {
+                    let name = manifest.file_name.clone();
+                    transfer_states.lock().unwrap().insert(name, TransferState::new(manifest));
+                    enc.send_encrypted(&serde_json::to_vec(&NodeMessage::Ack)?)?;
+                }
+                NodeMessage::SendFileChunk { file_name, chunk_index, data } => {
+                    Self::on_chunk(&file_name, chunk_index, &data, &transfer_states, &completed_files)?;
+                    enc.send_encrypted(&serde_json::to_vec(&NodeMessage::Ack)?)?;
+                }
+                NodeMessage::TransferComplete { .. } | NodeMessage::Ack => {}
+            }
+        }
+        Ok(())
+    }
