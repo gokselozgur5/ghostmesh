@@ -74,3 +74,16 @@ fn test_cli_pack_and_verify() {
     let _ = std::fs::remove_file(&sample_file);
     let _ = std::fs::remove_file(&manifest_file);
 }
+
+#[test]
+fn test_cli_live_demo() {
+    let output = Command::new(env!("CARGO_BIN_EXE_ghostmesh-cli"))
+        .arg("live-demo")
+        .output()
+        .expect("run ghostmesh live-demo");
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("LAN Discovery Beacon: peer="));
+    assert!(stdout.contains("CRDT Sync: node_b network='ghostmesh-live'"));
+    assert!(stdout.contains("File Transfer: verified"));
+}
