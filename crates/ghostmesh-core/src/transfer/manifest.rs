@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::path::{Component, Path};
 use thiserror::Error;
 
 pub const DEFAULT_CHUNK_SIZE: usize = 64 * 1024; // 64 KiB
@@ -15,6 +16,12 @@ pub enum TransferError {
     IncompleteTransfer(usize),
     #[error("empty data payload")]
     EmptyData,
+    #[error("invalid file name in manifest: {0}")]
+    InvalidFileName(String),
+    #[error("manifest total size {0} exceeds allowed maximum {1}")]
+    SizeExceedsLimit(u64, u64),
+    #[error("corrupt or non-contiguous chunk list in manifest")]
+    CorruptChunkList,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
