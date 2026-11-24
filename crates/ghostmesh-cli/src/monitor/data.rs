@@ -78,3 +78,47 @@ impl Default for MonitorState {
     }
 }
 
+pub fn mock_initial_state() -> MonitorState {
+    let mut state = MonitorState::new();
+    state.nodes = vec![
+        MonitorNode {
+            id: "node-alpha".into(),
+            name: "ALPHA-01".into(),
+            addr: "127.0.0.1:9001".into(),
+            status: NodeStatus::Online,
+            crdt_version: 142,
+            active_links: 3,
+        },
+        MonitorNode {
+            id: "node-bravo".into(),
+            name: "BRAVO-02".into(),
+            addr: "127.0.0.1:9002".into(),
+            status: NodeStatus::Online,
+            crdt_version: 142,
+            active_links: 3,
+        },
+        MonitorNode {
+            id: "node-charlie".into(),
+            name: "CHARLIE-03".into(),
+            addr: "127.0.0.1:9003".into(),
+            status: NodeStatus::Syncing,
+            crdt_version: 139,
+            active_links: 2,
+        },
+    ];
+    state.matrix = vec![
+        vec![None, Some(4), Some(12)],
+        vec![Some(4), None, Some(8)],
+        vec![Some(12), Some(8), None],
+    ];
+    state.transfers = vec![TransferProgress {
+        file_name: "payload.bin".into(),
+        total_chunks: 32,
+        completed_chunks: 14,
+        total_bytes: 2097152,
+        root_hash_prefix: "e3b0c442".into(),
+    }];
+    state.add_event("[INIT] Mesh monitor online. 3 nodes verified via BLAKE3".into());
+    state
+}
+
