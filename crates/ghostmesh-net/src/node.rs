@@ -60,3 +60,37 @@ pub struct MeshNode {
     shutdown: Arc<Mutex<bool>>,
 }
 
+
+impl MeshNode {
+    pub fn bind(identity: PeerIdentity, bind_addr: &str) -> Result<Self, NodeError> {
+        let listener = TcpListener::bind(bind_addr)?;
+        let local_addr = listener.local_addr()?;
+        let peer_id = identity.peer_id();
+        let identity = Arc::new(identity);
+        let lww_map = Arc::new(Mutex::new(LwwMap::new()));
+        let or_set = Arc::new(Mutex::new(OrSet::new(peer_id)));
+        let transfer_states = Arc::new(Mutex::new(HashMap::new()));
+        let completed_files = Arc::new(Mutex::new(HashMap::new()));
+        let shutdown = Arc::new(Mutex::new(false));
+
+        let node = Self {
+            identity,
+            local_addr,
+            lww_map,
+            or_set,
+            transfer_states,
+            completed_files,
+            shutdown,
+        };
+        node.start_accept_loop(listener);
+        Ok(node)
+    }
+
+    pub fn peer_id(&self) -> PeerId {
+        self.identity.peer_id()
+    }
+
+    pub fn local_addr(&self) -> SocketAddr {
+        self.local_addr
+    }
+}
