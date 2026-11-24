@@ -74,4 +74,48 @@ impl ChunkManifest {
             chunks,
         })
     }
+
+    pub fn validate(&self, max_total_bytes: u64) -> Result<(), TransferError> {
+        if self.file_name.is_empty() || self.file_name.contains('\0') {
+            return Err(TransferError::InvalidFileName(self.file_name.clone()));
+        }
+        let mut components = Path::new(&self.file_name).components();
+        match (components.next(), components.next()) {
+            (Some(Component::Normal(_)), None) => {}
+            _ => return Err(TransferError::InvalidFileName(self.file_name.clone())),
+        }
+
+        if self.total_size > max_total_bytes {
+            return Err(TransferError::SizeExceedsLimit(
+                self.total_size,
+                max_total_bytes,
+            ));
+        }
+
+        if self.total_size == 0 {
+            if !self.chunks.is_empty() {
+                return Err(TransferError::CorruptChunkList);
+            }
+            if self.root_hash != *blake3::hash(b"").as_bytes() {
+                return Err(TransferError::RootHashMismatch);
+            }
+            return Ok(());
+        }
+
+        let mut current_offset: u64 = 0;
+        for (i, chunk) in self.chunks.iter().enumerate() {
+            if chunk.index != i || chunk.offset != current_offset || chunk.length == 0 {
+                return Err(TransferError::CorruptChunkList);
+            }
+            current_offset = current_offset
+                .checked_add(chunk.length as u64)
+                .ok_or(TransferError::CorruptChunkList)?;
+        }
+
+        if current_offset != self.total_size {
+            return Err(TransferError::CorruptChunkList);
+        }
+
+        Ok(())
+    }
 }
