@@ -2,4 +2,5 @@
 
 pub mod discovery;
 pub mod handshake;
+pub mod node;
 pub mod wire;
