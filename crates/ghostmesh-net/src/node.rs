@@ -177,12 +177,19 @@ impl MeshNode {
                     enc.send_encrypted(&serde_json::to_vec(&NodeMessage::Ack)?)?;
                 }
                 NodeMessage::SendFileManifest { manifest } => {
+                    manifest.validate(MAX_TRANSFER_BYTES)?;
                     let name = manifest.file_name.clone();
-                    transfer_states
-                        .lock()
-                        .unwrap()
-                        .insert(name, TransferState::new(manifest));
-                    enc.send_encrypted(&serde_json::to_vec(&NodeMessage::Ack)?)?;
+                    if manifest.total_size == 0 {
+                        completed_files.lock().unwrap().insert(name, Vec::new());
+                        enc.send_encrypted(&serde_json::to_vec(&NodeMessage::Ack)?)?;
+                    } else {
+                        let mut states = transfer_states.lock().unwrap();
+                        if states.len() >= MAX_ACTIVE_TRANSFERS && !states.contains_key(&name) {
+                            return Err(NodeError::TransferCapacityReached);
+                        }
+                        states.insert(name, TransferState::new(manifest)?);
+                        enc.send_encrypted(&serde_json::to_vec(&NodeMessage::Ack)?)?;
+                    }
                 }
                 NodeMessage::SendFileChunk {
                     file_name,
