@@ -26,9 +26,15 @@ impl HlcTimestamp {
                 peer_id,
             }
         } else {
+            let (logical, overflow) = self.logical.overflowing_add(1);
+            let physical_ms = if overflow {
+                self.physical_ms.saturating_add(1)
+            } else {
+                self.physical_ms
+            };
             Self {
-                physical_ms: self.physical_ms,
-                logical: self.logical.saturating_add(1),
+                physical_ms,
+                logical,
                 peer_id,
             }
         }
@@ -36,18 +42,29 @@ impl HlcTimestamp {
 
     pub fn merge(&self, remote: &Self, now_ms: u64, peer_id: PeerId) -> Self {
         let max_phys = self.physical_ms.max(remote.physical_ms).max(now_ms);
-        let logical = if max_phys == self.physical_ms && max_phys == remote.physical_ms {
-            self.logical.max(remote.logical).saturating_add(1)
+        let base_logical = if max_phys == self.physical_ms && max_phys == remote.physical_ms {
+            self.logical.max(remote.logical)
         } else if max_phys == self.physical_ms {
-            self.logical.saturating_add(1)
+            self.logical
         } else if max_phys == remote.physical_ms {
-            remote.logical.saturating_add(1)
+            remote.logical
         } else {
-            0
+            return Self {
+                physical_ms: max_phys,
+                logical: 0,
+                peer_id,
+            };
+        };
+
+        let (logical, overflow) = base_logical.overflowing_add(1);
+        let physical_ms = if overflow {
+            max_phys.saturating_add(1)
+        } else {
+            max_phys
         };
 
         Self {
-            physical_ms: max_phys,
+            physical_ms,
             logical,
             peer_id,
         }
