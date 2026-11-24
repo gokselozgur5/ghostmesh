@@ -85,6 +85,7 @@ pub struct MeshNode {
 impl MeshNode {
     pub fn bind(identity: PeerIdentity, bind_addr: &str) -> Result<Self, NodeError> {
         let listener = TcpListener::bind(bind_addr)?;
+        listener.set_nonblocking(true)?;
         let local_addr = listener.local_addr()?;
         let peer_id = identity.peer_id();
         let identity = Arc::new(identity);
@@ -92,7 +93,8 @@ impl MeshNode {
         let or_set = Arc::new(Mutex::new(OrSet::new(peer_id)));
         let transfer_states = Arc::new(Mutex::new(HashMap::new()));
         let completed_files = Arc::new(Mutex::new(HashMap::new()));
-        let shutdown = Arc::new(Mutex::new(false));
+        let active_peers = Arc::new(AtomicUsize::new(0));
+        let shutdown = Arc::new(AtomicBool::new(false));
 
         let node = Self {
             identity,
@@ -101,15 +103,23 @@ impl MeshNode {
             or_set,
             transfer_states,
             completed_files,
+            active_peers,
             shutdown,
+            listener_handle: Mutex::new(None),
         };
-        node.start_accept_loop(listener);
+        *node.listener_handle.lock().unwrap() = Some(node.start_accept_loop(listener));
         Ok(node)
     }
 
-    pub fn peer_id(&self) -> PeerId {
-        self.identity.peer_id()
+    pub fn shutdown(&self) {
+        self.shutdown.store(true, Ordering::SeqCst);
+        let handle = self.listener_handle.lock().unwrap().take();
+        if let Some(h) = handle {
+            let _ = h.join();
+        }
     }
+
+    pub fn peer_id(&self) -> PeerId {
 
     pub fn local_addr(&self) -> SocketAddr {
         self.local_addr
