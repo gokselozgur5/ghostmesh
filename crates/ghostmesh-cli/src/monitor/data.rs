@@ -124,18 +124,22 @@ pub fn mock_initial_state() -> MonitorState {
 
 pub fn advance_simulation(state: &mut MonitorState) {
     state.tick += 1;
+    let mut completed_event = None;
     for t in &mut state.transfers {
         if t.completed_chunks < t.total_chunks {
             t.completed_chunks += 1;
             if t.completed_chunks == t.total_chunks {
-                state.add_event(format!(
+                completed_event = Some(format!(
                     "[CHUNK] File {} assembly complete (root: {})",
                     t.file_name, t.root_hash_prefix
                 ));
             }
         }
     }
-    if state.tick % 5 == 0 {
+    if let Some(ev) = completed_event {
+        state.add_event(ev);
+    }
+    if state.tick.is_multiple_of(5) {
         if let Some(r) = state.matrix.get_mut(0).and_then(|row| row.get_mut(1)) {
             *r = Some(3 + ((state.tick % 4) as u32));
         }

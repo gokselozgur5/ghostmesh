@@ -68,7 +68,7 @@ pub fn render_latency_matrix(
         for (j, _) in nodes.iter().enumerate() {
             if i == j {
                 out.push_str(&format!("{}-       {}", DIM, RESET));
-            } else if let Some(Some(ms)) = matrix.get(i).map(|row| row.get(j)).flatten() {
+            } else if let Some(Some(ms)) = matrix.get(i).and_then(|row| row.get(j)) {
                 let color = if *ms < 10 {
                     GREEN
                 } else if *ms < 50 {
