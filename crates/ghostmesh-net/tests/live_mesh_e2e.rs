@@ -74,3 +74,22 @@ fn test_three_node_multi_hop_crdt_convergence() {
     assert_eq!(map_b.get(&"node_a_key".to_string()).unwrap(), "from_a");
     assert_eq!(map_c.get(&"node_a_key".to_string()).unwrap(), "from_a");
 }
+
+#[test]
+fn test_live_chunked_encrypted_file_transfer() {
+    let mut rng = rand_core::OsRng;
+    let sender_node = MeshNode::bind(PeerIdentity::generate(&mut rng), "127.0.0.1:0").unwrap();
+    let receiver_node = MeshNode::bind(PeerIdentity::generate(&mut rng), "127.0.0.1:0").unwrap();
+
+    let test_file_name = "test_data.bin";
+    // 150 KiB file spans multiple 64 KiB chunks
+    let original_bytes = vec![0x42u8; 150 * 1024];
+
+    sender_node
+        .send_file_to(receiver_node.local_addr(), test_file_name, &original_bytes)
+        .unwrap();
+
+    let completed = receiver_node.completed_files.lock().unwrap();
+    let received_bytes = completed.get(test_file_name).expect("file not found in receiver");
+    assert_eq!(received_bytes, &original_bytes);
+}
