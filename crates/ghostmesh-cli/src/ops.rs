@@ -15,6 +15,9 @@ pub fn print_usage() {
     println!("  sim-sync                     Simulate encrypted E2EE CRDT sync session");
     println!("  pack <file>                  Create BLAKE3 chunked manifest for file");
     println!("  verify <manifest> <source>   Verify file integrity against manifest");
+    println!("  live-demo                    Run live encrypted 2-node CRDT + file transfer demo");
+    println!("  listen <addr>                Listen as a live mesh node on address");
+    println!("  send <addr> <file>           Send file to remote mesh node over encrypted link");
 }
 
 pub fn run_keygen() {
