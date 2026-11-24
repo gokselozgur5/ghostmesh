@@ -77,3 +77,22 @@ fn or_set_add_wins_concurrency() {
     merged.merge(set_a);
     assert!(merged.contains(&"shared_item".to_string()));
 }
+
+#[test]
+fn hlc_logical_overflow_carries_to_physical() {
+    let p1 = PeerId([1u8; 32]);
+    let p2 = PeerId([2u8; 32]);
+
+    let t1 = HlcTimestamp::new(1000, u16::MAX, p1);
+    let t2 = t1.tick(1000, p1);
+    assert_eq!(t2.physical_ms, 1001);
+    assert_eq!(t2.logical, 0);
+    assert!(t2 > t1);
+
+    let t_remote = HlcTimestamp::new(1000, u16::MAX, p2);
+    let t_merged = t1.merge(&t_remote, 1000, p1);
+    assert_eq!(t_merged.physical_ms, 1001);
+    assert_eq!(t_merged.logical, 0);
+    assert!(t_merged > t1);
+    assert!(t_merged > t_remote);
+}
