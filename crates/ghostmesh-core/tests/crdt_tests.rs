@@ -96,3 +96,23 @@ fn hlc_logical_overflow_carries_to_physical() {
     assert!(t_merged > t1);
     assert!(t_merged > t_remote);
 }
+
+#[test]
+fn or_set_merge_does_not_adopt_foreign_next_seq() {
+    let p1 = PeerId([1u8; 32]);
+    let p2 = PeerId([2u8; 32]);
+
+    let mut set_a = OrSet::new(p1);
+    let mut set_b = OrSet::new(p2);
+
+    // B inserts with high sequence number
+    for _ in 0..10 {
+        set_b.insert("b_item".to_string());
+    }
+
+    set_a.merge(set_b);
+    let tag = set_a.insert("a_item".to_string());
+    // set_a should have local sequence 1, not 11
+    assert_eq!(tag.peer_id, p1);
+    assert_eq!(tag.seq, 1);
+}
