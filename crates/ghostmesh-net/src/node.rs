@@ -42,3 +42,21 @@ pub enum NodeMessage {
     },
     Ack,
 }
+
+use ghostmesh_core::crdt::OrSet;
+use ghostmesh_core::identity::PeerIdentity;
+use ghostmesh_core::transfer::TransferState;
+use std::collections::HashMap;
+use std::net::{SocketAddr, TcpListener};
+use std::sync::{Arc, Mutex};
+
+pub struct MeshNode {
+    pub identity: Arc<PeerIdentity>,
+    pub local_addr: SocketAddr,
+    pub lww_map: Arc<Mutex<LwwMap<String, String>>>,
+    pub or_set: Arc<Mutex<OrSet<String>>>,
+    pub transfer_states: Arc<Mutex<HashMap<String, TransferState>>>,
+    pub completed_files: Arc<Mutex<HashMap<String, Vec<u8>>>>,
+    shutdown: Arc<Mutex<bool>>,
+}
+
