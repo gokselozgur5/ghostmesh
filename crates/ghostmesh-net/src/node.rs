@@ -150,11 +150,7 @@ impl MeshNode {
         transfer_states: Arc<Mutex<HashMap<String, TransferState>>>,
         completed_files: Arc<Mutex<HashMap<String, Vec<u8>>>>,
     ) -> Result<(), NodeError> {
-        loop {
-            let plaintext = match enc.recv_encrypted() {
-                Ok(p) => p,
-                Err(_) => break,
-            };
+        while let Ok(plaintext) = enc.recv_encrypted() {
             let msg: NodeMessage = serde_json::from_slice(&plaintext)?;
             match msg {
                 NodeMessage::SyncLwwRequest => {
