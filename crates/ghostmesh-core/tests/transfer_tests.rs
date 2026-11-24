@@ -8,7 +8,7 @@ fn chunking_manifest_and_reassembly() {
         ChunkManifest::build("test.txt".to_string(), raw_data, chunk_size).expect("valid manifest");
 
     assert_eq!(manifest.chunks.len(), 5);
-    let mut state = TransferState::new(manifest.clone());
+    let mut state = TransferState::new(manifest.clone()).expect("valid transfer state");
 
     // Deliver chunks out of order: 3, 1, 4, 0, 2
     let indices = [3, 1, 4, 0, 2];
@@ -33,7 +33,7 @@ fn chunk_corruption_and_incomplete_detection() {
     let manifest =
         ChunkManifest::build("doc.bin".to_string(), raw_data, chunk_size).expect("valid manifest");
 
-    let mut state = TransferState::new(manifest.clone());
+    let mut state = TransferState::new(manifest.clone()).expect("valid transfer state");
 
     // Incomplete transfer error
     assert_eq!(
@@ -48,4 +48,20 @@ fn chunk_corruption_and_incomplete_detection() {
         state.verify_and_store_chunk(0, &bad_chunk).unwrap_err(),
         TransferError::ChunkHashMismatch(0)
     );
+}
+
+#[test]
+fn zero_byte_manifest_and_path_traversal_validation() {
+    let zero_manifest = ChunkManifest::build("empty.bin".to_string(), b"", 1024).unwrap();
+    assert_eq!(zero_manifest.total_size, 0);
+    assert!(zero_manifest.chunks.is_empty());
+    let zero_state = TransferState::new(zero_manifest).unwrap();
+    assert!(zero_state.is_complete());
+    assert_eq!(zero_state.reassemble().unwrap(), b"");
+
+    let traversal_err = ChunkManifest::build("../secret.txt".to_string(), b"data", 1024);
+    assert!(matches!(traversal_err, Err(TransferError::InvalidFileName(_))));
+
+    let abs_err = ChunkManifest::build("/etc/passwd".to_string(), b"data", 1024);
+    assert!(matches!(abs_err, Err(TransferError::InvalidFileName(_))));
 }
