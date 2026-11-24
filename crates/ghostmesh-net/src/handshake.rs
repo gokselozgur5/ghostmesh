@@ -13,6 +13,8 @@ pub const RESPONDER_ROLE: &[u8] = b"ghostmesh-handshake-responder-v1";
 pub enum HandshakeError {
     #[error("wire error: {0}")]
     Wire(#[from] crate::wire::WireError),
+    #[error("serialization error: {0}")]
+    Serialization(#[from] serde_json::Error),
     #[error("identity error: {0}")]
     Identity(#[from] IdentityError),
     #[error("crypto error: {0}")]
