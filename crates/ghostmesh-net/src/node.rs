@@ -127,3 +127,21 @@ impl MeshNode {
             }
         });
     }
+
+    fn on_chunk(
+        name: &str,
+        idx: usize,
+        data: &[u8],
+        xfer: &Arc<Mutex<HashMap<String, TransferState>>>,
+        comp: &Arc<Mutex<HashMap<String, Vec<u8>>>>,
+    ) -> Result<(), NodeError> {
+        let mut states = xfer.lock().unwrap();
+        if let Some(state) = states.get_mut(name) {
+            state.verify_and_store_chunk(idx, data)?;
+            if state.is_complete() {
+                let bytes = state.reassemble()?;
+                comp.lock().unwrap().insert(name.to_string(), bytes);
+            }
+        }
+        Ok(())
+    }
