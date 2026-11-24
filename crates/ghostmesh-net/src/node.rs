@@ -120,6 +120,8 @@ impl MeshNode {
     }
 
     pub fn peer_id(&self) -> PeerId {
+        self.identity.peer_id()
+    }
 
     pub fn local_addr(&self) -> SocketAddr {
         self.local_addr

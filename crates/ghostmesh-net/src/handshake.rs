@@ -220,7 +220,9 @@ pub fn server_handshake<R: rand_core::RngCore + rand_core::CryptoRng>(
 
     let confirm_frame = crate::wire::read_frame(&mut stream)?;
     if confirm_frame.len() < 8 {
-        return Err(HandshakeError::Crypto(ghostmesh_core::CryptoError::DecryptionFailed));
+        return Err(HandshakeError::Crypto(
+            ghostmesh_core::CryptoError::DecryptionFailed,
+        ));
     }
     let nonce = u64::from_be_bytes(confirm_frame[0..8].try_into().unwrap());
     let plaintext = rx_cipher.decrypt(nonce, &confirm_frame[8..])?;
