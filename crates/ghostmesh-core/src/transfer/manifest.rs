@@ -43,14 +43,25 @@ pub struct ChunkManifest {
 
 impl ChunkManifest {
     pub fn build(file_name: String, data: &[u8], chunk_size: usize) -> Result<Self, TransferError> {
-        if data.is_empty() {
-            return Err(TransferError::EmptyData);
-        }
         let chunk_size = if chunk_size == 0 {
             DEFAULT_CHUNK_SIZE
         } else {
             chunk_size
         };
+
+        if data.is_empty() {
+            let root_hash = *blake3::hash(b"").as_bytes();
+            let manifest = Self {
+                file_name,
+                total_size: 0,
+                chunk_size,
+                root_hash,
+                chunks: Vec::new(),
+            };
+            manifest.validate(u64::MAX)?;
+            return Ok(manifest);
+        }
+
         let mut chunks = Vec::new();
         let mut root_hasher = blake3::Hasher::new();
 
@@ -66,13 +77,15 @@ impl ChunkManifest {
         }
 
         let root_hash = *root_hasher.finalize().as_bytes();
-        Ok(Self {
+        let manifest = Self {
             file_name,
             total_size: data.len() as u64,
             chunk_size,
             root_hash,
             chunks,
-        })
+        };
+        manifest.validate(u64::MAX)?;
+        Ok(manifest)
     }
 
     pub fn validate(&self, max_total_bytes: u64) -> Result<(), TransferError> {
