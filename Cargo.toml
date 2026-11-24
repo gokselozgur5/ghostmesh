@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "crates/ghostmesh-core",
+    "crates/ghostmesh-net",
     "crates/ghostmesh-cli",
 ]
 
