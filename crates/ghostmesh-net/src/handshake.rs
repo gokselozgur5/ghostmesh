@@ -75,3 +75,39 @@ impl HandshakeHello {
         Ok(X25519PublicKey::from(self.ephemeral_public))
     }
 }
+
+use ghostmesh_core::{KeyExchange, SessionCipher};
+use std::net::TcpStream;
+
+pub struct EncryptedStream {
+    pub stream: TcpStream,
+    pub tx_cipher: SessionCipher,
+    pub rx_cipher: SessionCipher,
+    pub remote_peer: PeerId,
+}
+
+impl EncryptedStream {
+    pub fn remote_peer(&self) -> PeerId {
+        self.remote_peer
+    }
+
+    pub fn send_encrypted(&mut self, payload: &[u8]) -> Result<(), HandshakeError> {
+        let (nonce, ciphertext) = self.tx_cipher.encrypt(payload)?;
+        let mut framed = Vec::with_capacity(8 + ciphertext.len());
+        framed.extend_from_slice(&nonce.to_be_bytes());
+        framed.extend_from_slice(&ciphertext);
+        crate::wire::write_frame(&mut self.stream, &framed)?;
+        Ok(())
+    }
+
+    pub fn recv_encrypted(&mut self) -> Result<Vec<u8>, HandshakeError> {
+        let framed = crate::wire::read_frame(&mut self.stream)?;
+        if framed.len() < 8 {
+            return Err(HandshakeError::Crypto(ghostmesh_core::CryptoError::DecryptionFailed));
+        }
+        let nonce = u64::from_be_bytes(framed[0..8].try_into().unwrap());
+        let ciphertext = &framed[8..];
+        let plaintext = self.rx_cipher.decrypt(nonce, ciphertext)?;
+        Ok(plaintext)
+    }
+}
