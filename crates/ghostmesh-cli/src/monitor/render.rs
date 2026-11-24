@@ -125,3 +125,31 @@ pub fn render_transfer_bars(
     }
     out
 }
+
+pub fn render_event_log(events: &[String], width: usize) -> String {
+    let mut out = String::new();
+    let border = "─".repeat(width.saturating_sub(23));
+    out.push_str(&format!(
+        "{}{}┌── EVENT AUDIT LOG {}\n",
+        BRIGHT_CYAN, BOLD, border
+    ));
+    if events.is_empty() {
+        out.push_str("│ [IDLE] No logged events\n");
+    } else {
+        for ev in events {
+            out.push_str(&format!("│ {}{}\n", DIM, ev));
+        }
+    }
+    out.push_str(RESET);
+    out
+}
+
+pub fn render_frame(state: &MonitorState, width: usize) -> String {
+    let mut frame = String::new();
+    frame.push_str(&render_header(state.tick, width));
+    frame.push_str(&render_node_topology(&state.nodes, width));
+    frame.push_str(&render_latency_matrix(&state.nodes, &state.matrix, width));
+    frame.push_str(&render_transfer_bars(&state.transfers, width, state.tick));
+    frame.push_str(&render_event_log(&state.events, width));
+    frame
+}
