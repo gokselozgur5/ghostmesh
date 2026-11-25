@@ -19,6 +19,7 @@ pub fn print_usage() {
     println!("  listen <addr>                Listen as a live mesh node on address");
     println!("  send <addr> <file>           Send file to remote mesh node over encrypted link");
     println!("  tui [--demo] [--ticks N]     Launch live mesh TUI (alias: monitor)");
+    println!("  discover [--timeout-ms N] [--json]  Discover LAN peers via UDP beacons");
 }
 
 pub fn run_keygen() {
