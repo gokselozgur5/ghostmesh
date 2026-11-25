@@ -107,3 +107,14 @@ fn test_cli_tui_demo_and_live() {
     assert!(live_out.contains("[LIVE]"));
     assert!(live_out.contains("\x1b[?25h"));
 }
+
+#[test]
+fn test_cli_discover_json() {
+    let out = Command::new(env!("CARGO_BIN_EXE_ghostmesh-cli"))
+        .args(["discover", "--timeout-ms", "80", "--json"])
+        .output()
+        .expect("run ghostmesh discover --json");
+    assert!(out.status.success());
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert_eq!(stdout.trim(), "[]");
+}
