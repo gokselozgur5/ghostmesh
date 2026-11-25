@@ -1,3 +1,5 @@
+use ghostmesh_net::node::MeshNode;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NodeStatus {
     Online,
@@ -69,6 +71,63 @@ impl MonitorState {
             self.events.remove(0);
         }
         self.events.push(ev);
+    }
+
+    pub fn from_live_node(node: &MeshNode, tick: u64, uptime_secs: u64) -> Self {
+        let mut s = Self {
+            tick,
+            ..Self::new()
+        };
+        let peer_hex = node.peer_id().to_hex();
+        let short = peer_hex.get(..4).unwrap_or(&peer_hex);
+        let addr = node.local_addr();
+        let crdt = node.lww_map.lock().map_or(0, |m| m.entries().len() as u64);
+        let peers: Vec<String> = node
+            .or_set
+            .lock()
+            .map_or(vec![], |o| o.elements().into_iter().collect());
+        let done = node.completed_files.lock().map_or(0, |f| f.len());
+        let mk = |id, name, a, links| MonitorNode {
+            id,
+            name,
+            addr: a,
+            status: NodeStatus::Online,
+            crdt_version: crdt,
+            active_links: links,
+        };
+        s.nodes.push(mk(
+            peer_hex.clone(),
+            format!("LOCAL-{short}"),
+            addr.to_string(),
+            peers.len(),
+        ));
+        for p in &peers {
+            s.nodes.push(mk(
+                p.clone(),
+                format!("PEER-{}", p.get(..4).unwrap_or(p)),
+                "discovered".into(),
+                1,
+            ));
+        }
+        s.matrix = vec![vec![None; s.nodes.len()]; s.nodes.len()];
+        if let Ok(xfers) = node.transfer_states.lock() {
+            for st in xfers.values() {
+                let total = st.manifest.chunks.len();
+                s.transfers.push(TransferProgress {
+                    file_name: st.manifest.file_name.clone(),
+                    total_chunks: total,
+                    completed_chunks: total.saturating_sub(st.missing_chunks().len()),
+                    total_bytes: st.manifest.total_size,
+                    root_hash_prefix: blake3::Hash::from(st.manifest.root_hash).to_hex()[..8]
+                        .into(),
+                });
+            }
+        }
+        s.add_event(format!(
+            "[LIVE] {short} @ {addr} | up {uptime_secs}s | crdt:{crdt} | peers:{} | files:{done}",
+            peers.len()
+        ));
+        s
     }
 }
 
