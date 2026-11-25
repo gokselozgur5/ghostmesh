@@ -42,9 +42,23 @@ fn main() {
             }
             ops::run_send(&args[2], &args[3]);
         }
+        "tui" | "monitor" => run_tui_cmd(&args[2..]),
         _ => {
             ops::print_usage();
             std::process::exit(1);
         }
+    }
+}
+
+fn run_tui_cmd(args: &[String]) {
+    let demo = args.iter().any(|a| a == "--demo");
+    let ticks = args
+        .windows(2)
+        .find(|w| w[0] == "--ticks")
+        .and_then(|w| w[1].parse::<u64>().ok());
+    if demo {
+        monitor::run_monitor(ticks);
+    } else {
+        monitor::run_live_monitor(ticks);
     }
 }
