@@ -89,3 +89,49 @@ impl DiscoveryBeacon {
         Ok((beacon, src_addr))
     }
 }
+
+pub const DEFAULT_DISCOVERY_ADDR: &str = "0.0.0.0:45454";
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DiscoveredPeer {
+    pub peer_id: String,
+    pub addr: std::net::SocketAddr,
+    pub tcp_port: u16,
+    pub timestamp_ms: u64,
+}
+
+pub fn discover_peers(
+    bind_addr: &str,
+    timeout: std::time::Duration,
+) -> Result<Vec<DiscoveredPeer>, DiscoveryError> {
+    let socket = UdpSocket::bind(bind_addr)?;
+    socket.set_read_timeout(Some(std::time::Duration::from_millis(50)))?;
+    let deadline = std::time::Instant::now() + timeout;
+    let mut peers = std::collections::BTreeMap::new();
+    let mut buf = [0u8; 4096];
+
+    while std::time::Instant::now() < deadline {
+        match DiscoveryBeacon::recv_beacon(&socket, &mut buf) {
+            Ok((beacon, addr)) => {
+                let peer_id = beacon.announcement.peer_id.to_hex();
+                peers.insert(
+                    peer_id.clone(),
+                    DiscoveredPeer {
+                        peer_id,
+                        addr,
+                        tcp_port: beacon.tcp_port,
+                        timestamp_ms: beacon.announcement.timestamp_ms,
+                    },
+                );
+            }
+            Err(DiscoveryError::Io(ref e))
+                if e.kind() == io::ErrorKind::WouldBlock || e.kind() == io::ErrorKind::TimedOut =>
+            {
+                continue;
+            }
+            Err(_) => continue,
+        }
+    }
+
+    Ok(peers.into_values().collect())
+}
