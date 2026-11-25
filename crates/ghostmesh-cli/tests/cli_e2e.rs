@@ -109,6 +109,7 @@ fn test_cli_tui_demo_and_live() {
 }
 
 #[test]
+<<<<<<< HEAD
 fn test_cli_discover_json() {
     let out = Command::new(env!("CARGO_BIN_EXE_ghostmesh-cli"))
         .args(["discover", "--timeout-ms", "80", "--json"])
@@ -117,4 +118,40 @@ fn test_cli_discover_json() {
     assert!(out.status.success());
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert_eq!(stdout.trim(), "[]");
+}
+
+#[test]
+fn cli_init_and_trust_persist_identity() {
+    let dir = std::env::temp_dir().join(format!("ghostmesh_init_e2e_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+
+    let first = Command::new(env!("CARGO_BIN_EXE_ghostmesh-cli"))
+        .arg("init")
+        .env("GHOSTMESH_CONFIG_DIR", &dir)
+        .output()
+        .expect("run init");
+    assert!(first.status.success());
+    let first_out = String::from_utf8_lossy(&first.stdout);
+    assert!(first_out.contains("initialized peer_id:"));
+    assert!(dir.join("identity.key").exists());
+
+    let second = Command::new(env!("CARGO_BIN_EXE_ghostmesh-cli"))
+        .arg("init")
+        .env("GHOSTMESH_CONFIG_DIR", &dir)
+        .output()
+        .expect("run init again");
+    assert!(second.status.success());
+    assert!(String::from_utf8_lossy(&second.stdout).contains("loaded peer_id:"));
+
+    let peer_hex = "a".repeat(64);
+    let trust = Command::new(env!("CARGO_BIN_EXE_ghostmesh-cli"))
+        .args(["trust", &peer_hex])
+        .env("GHOSTMESH_CONFIG_DIR", &dir)
+        .output()
+        .expect("run trust");
+    assert!(trust.status.success());
+    assert!(String::from_utf8_lossy(&trust.stdout).contains("trusted:"));
+    assert!(dir.join("trusted_peers.json").exists());
+
+    let _ = std::fs::remove_dir_all(&dir);
 }
