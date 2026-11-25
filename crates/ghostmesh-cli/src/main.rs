@@ -1,3 +1,4 @@
+pub mod discover;
 pub mod monitor;
 pub mod ops;
 
@@ -43,6 +44,7 @@ fn main() {
             ops::run_send(&args[2], &args[3]);
         }
         "tui" | "monitor" => run_tui_cmd(&args[2..]),
+        "discover" => run_discover_cmd(&args[2..]),
         _ => {
             ops::print_usage();
             std::process::exit(1);
@@ -61,4 +63,14 @@ fn run_tui_cmd(args: &[String]) {
     } else {
         monitor::run_live_monitor(ticks);
     }
+}
+
+fn run_discover_cmd(args: &[String]) {
+    let json = args.iter().any(|a| a == "--json");
+    let timeout_ms = args
+        .windows(2)
+        .find(|w| w[0] == "--timeout-ms")
+        .and_then(|w| w[1].parse::<u64>().ok())
+        .unwrap_or(1500);
+    discover::run_discover(timeout_ms, json);
 }
