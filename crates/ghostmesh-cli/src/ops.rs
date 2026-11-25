@@ -18,6 +18,7 @@ pub fn print_usage() {
     println!("  live-demo                    Run live encrypted 2-node CRDT + file transfer demo");
     println!("  listen <addr>                Listen as a live mesh node on address");
     println!("  send <addr> <file>           Send file to remote mesh node over encrypted link");
+    println!("  tui [--demo] [--ticks N]     Launch live mesh TUI (alias: monitor)");
 }
 
 pub fn run_keygen() {
