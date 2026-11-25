@@ -11,6 +11,8 @@ use std::path::Path;
 pub fn print_usage() {
     println!("ghostmesh CLI");
     println!("Commands:");
+    println!("  init [--force]               Initialize persistent Ed25519 identity");
+    println!("  trust <peer_id_hex>          Add a trusted peer ID to trust store");
     println!("  keygen                       Generate new Ed25519 peer identity");
     println!("  sim-sync                     Simulate encrypted E2EE CRDT sync session");
     println!("  pack <file>                  Create BLAKE3 chunked manifest for file");
@@ -20,6 +22,41 @@ pub fn print_usage() {
     println!("  send <addr> <file>           Send file to remote mesh node over encrypted link");
     println!("  tui [--demo] [--ticks N]     Launch live mesh TUI (alias: monitor)");
     println!("  discover [--timeout-ms N] [--json]  Discover LAN peers via UDP beacons");
+}
+
+pub fn run_init(force: bool) {
+    let dir = crate::config::config_dir().unwrap_or_else(|e| {
+        eprintln!("init failed: {e}");
+        std::process::exit(1);
+    });
+    match crate::config::init_identity(&dir, force) {
+        Ok((peer_id, created)) => {
+            let action = if created { "initialized" } else { "loaded" };
+            println!("{action} peer_id: {}", peer_id.to_hex());
+            println!("config_dir: {}", dir.display());
+        }
+        Err(e) => {
+            eprintln!("init failed: {e}");
+            std::process::exit(1);
+        }
+    }
+}
+
+pub fn run_trust(peer_hex: &str) {
+    let dir = crate::config::config_dir().unwrap_or_else(|e| {
+        eprintln!("trust failed: {e}");
+        std::process::exit(1);
+    });
+    match crate::config::trust_peer(&dir, peer_hex) {
+        Ok(added) => {
+            let status = if added { "trusted" } else { "already trusted" };
+            println!("{status}: {peer_hex}");
+        }
+        Err(e) => {
+            eprintln!("trust failed: {e}");
+            std::process::exit(1);
+        }
+    }
 }
 
 pub fn run_keygen() {
