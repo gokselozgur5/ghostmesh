@@ -91,6 +91,10 @@ impl PeerIdentity {
         &self.verifying_key
     }
 
+    pub fn seed_bytes(&self) -> [u8; 32] {
+        self.signing_key.to_bytes()
+    }
+
     pub fn sign(&self, message: &[u8]) -> [u8; SIGNATURE_LENGTH] {
         self.signing_key.sign(message).to_bytes()
     }
