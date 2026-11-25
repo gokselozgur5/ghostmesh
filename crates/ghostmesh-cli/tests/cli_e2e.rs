@@ -87,3 +87,23 @@ fn test_cli_live_demo() {
     assert!(stdout.contains("CRDT Sync: node_b network='ghostmesh-live'"));
     assert!(stdout.contains("File Transfer: verified"));
 }
+
+#[test]
+fn test_cli_tui_demo_and_live() {
+    let demo = Command::new(env!("CARGO_BIN_EXE_ghostmesh-cli"))
+        .args(["tui", "--demo", "--ticks", "2"])
+        .output()
+        .expect("run ghostmesh tui --demo");
+    assert!(demo.status.success());
+    let demo_out = String::from_utf8_lossy(&demo.stdout);
+    assert!(demo_out.contains("\x1b[?25h"));
+
+    let live = Command::new(env!("CARGO_BIN_EXE_ghostmesh-cli"))
+        .args(["tui", "--ticks", "2"])
+        .output()
+        .expect("run ghostmesh tui live");
+    assert!(live.status.success());
+    let live_out = String::from_utf8_lossy(&live.stdout);
+    assert!(live_out.contains("[LIVE]"));
+    assert!(live_out.contains("\x1b[?25h"));
+}
