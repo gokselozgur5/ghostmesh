@@ -42,7 +42,8 @@ pub fn trust_peer(dir: &Path, peer_hex: &str) -> Result<bool, String> {
         BTreeSet::new()
     };
     let inserted = peers.insert(peer_id.to_hex());
-    let json = serde_json::to_string_pretty(&peers).map_err(|e| format!("encode trust store: {e}"))?;
+    let json =
+        serde_json::to_string_pretty(&peers).map_err(|e| format!("encode trust store: {e}"))?;
     fs::write(&path, format!("{json}\n")).map_err(|e| format!("write trust store: {e}"))?;
     Ok(inserted)
 }

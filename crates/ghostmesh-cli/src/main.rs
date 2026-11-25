@@ -1,3 +1,4 @@
+pub mod config;
 pub mod discover;
 pub mod monitor;
 pub mod ops;
@@ -12,6 +13,14 @@ fn main() {
     }
 
     match args[1].as_str() {
+        "init" => ops::run_init(args.iter().any(|a| a == "--force")),
+        "trust" => {
+            if args.len() < 3 {
+                eprintln!("Usage: ghostmesh trust <peer_id_hex>");
+                std::process::exit(1);
+            }
+            ops::run_trust(&args[2]);
+        }
         "keygen" => ops::run_keygen(),
         "sim-sync" => ops::run_sim_sync(),
         "pack" => {
